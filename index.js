@@ -21,12 +21,12 @@ admin.initializeApp();
 // Telegram bot configuration
 const CHAT_IDS = [
   "-1002673859693", // https://t.me/pomchatdev
-  "-1002412279665", // https://t.me/pomchatpop
-  "-1002642186417", // https://t.me/pomchatvip
-  "-1002603412953", // https://t.me/pomchatlive
-  "-1002560028339", // https://t.me/pomchat
-  "-1002559668222", // https://t.me/pombabe
-  "-1002307647703", // https://t.me/pomchat06
+  // "-1002412279665", // https://t.me/pomchatpop
+  // "-1002642186417", // https://t.me/pomchatvip
+  // "-1002603412953", // https://t.me/pomchatlive
+  // "-1002560028339", // https://t.me/pomchat
+  // "-1002559668222", // https://t.me/pombabe
+  // "-1002307647703", // https://t.me/pomchat06
 ]; 
 
 const db = admin.database();
@@ -352,7 +352,7 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
 
     // Convert to array and filter for hosts (status "b")
     const userEntries = Object.entries(allUsers);
-    const hostUsers = userEntries.filter(([userId, userData]) => userData.status === "b");
+    const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
 
     if (hostUsers.length === 0) {
       logger.info("❌ No host users found");
@@ -360,31 +360,62 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
       return;
     }
 
-    // Select random user
-    const randomIndex = Math.floor(Math.random() * hostUsers.length);
-    const [randomUserId, randomUserData] = hostUsers[randomIndex];
+    // Try up to 5 users to find one with media
+    const maxAttempts = Math.min(5, hostUsers.length);
+    let selectedUser = null;
+    let selectedMedia = null;
+    let attempts = 0;
+    let triedUsers = new Set(); // Track tried users
 
-    logger.info(`🎲 Selected random user: ${randomUserId} (${randomUserData.nickname})`);
+    for (let i = 0; i < maxAttempts; i++) {
+      // Filter out already tried users
+      const availableUsers = hostUsers.filter(([userId]) => !triedUsers.has(userId));
+      
+      if (availableUsers.length === 0) {
+        logger.info("❌ No more users to try");
+        break;
+      }
+      
+      // Select random user from remaining users
+      const randomIndex = Math.floor(Math.random() * availableUsers.length);
+      const [randomUserId, randomUserData] = availableUsers[randomIndex];
+      
+      attempts++;
+      logger.info(`🎲 Attempt ${attempts}: Trying user ${randomUserId} (${randomUserData.nickname})`);
 
-    // Get media for the random user (using userId as account_id)
-    const media = await getMedia(randomUserId);
-    if (!media) {
-      logger.info(`❌ No media found for user ${randomUserId}`);
-      res.status(200).json({ success: false, message: "No media found" });
+      // Get media for the random user
+      const media = await getMedia(randomUserId);
+      if (media) {
+        selectedUser = { userId: randomUserId, userData: randomUserData };
+        selectedMedia = media;
+        logger.info(`✅ Found media for user ${randomUserId} on attempt ${attempts}`);
+        break;
+      } else {
+        logger.info(`❌ No media found for user ${randomUserId}, trying next user...`);
+        triedUsers.add(randomUserId); // Mark as tried
+      }
+    }
+
+    if (!selectedUser || !selectedMedia) {
+      logger.info(`❌ No media found after trying ${attempts} users`);
+      res.status(200).json({ 
+        success: false, 
+        message: `No media found after trying ${attempts} users`,
+        attempts: attempts
+      });
       return;
     }
 
     // Send media to Telegram
-    const caption = `🎉 ${randomUserData.nickname} is LIVE now! 🔥\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
+    const caption = `🎉 ${selectedUser.userData.nickname} is LIVE now! 🔥\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
     
     const sendPromises = CHAT_IDS.map(async (chatId) => {
-      console.log("xxxxxxxxxxxxxxxxxxxxxxxchatId", chatId);
-      const result = await sendMediaToTG(media.path, media.type, chatId, caption);
+      const result = await sendMediaToTG(selectedMedia.path, selectedMedia.type, chatId, caption);
       if (result.success) {
-        logger.info(`✅ Successfully sent media for user ${randomUserId} to Telegram chat ${chatId}`);
+        logger.info(`✅ Successfully sent media for user ${selectedUser.userId} to Telegram chat ${chatId}`);
         return { success: true, chatId };
       } else {
-        logger.error(`❌ Failed to send media for user ${randomUserId} to chat ${chatId}:`, result.error);
+        logger.error(`❌ Failed to send media for user ${selectedUser.userId} to chat ${chatId}:`, result.error);
         return { success: false, chatId, error: result.error };
       }
     });
@@ -394,22 +425,23 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
     const errorCount = results.filter(r => !r.success).length;
     
     if (errorCount === 0) {
-      logger.info(`✅ Successfully sent media for user ${randomUserId} to all ${successCount} Telegram chats`);
+      logger.info(`✅ Successfully sent media for user ${selectedUser.userId} to all ${successCount} Telegram chats`);
       res.status(200).json({
         success: true,
         message: "Media sent successfully",
+        attempts: attempts,
         user: {
-          id: randomUserId,
-          nickname: randomUserData.nickname,
-          userId: randomUserId
+          id: selectedUser.userId,
+          nickname: selectedUser.userData.nickname,
+          userId: selectedUser.userId
         },
         media: {
-          path: media.path,
-          type: media.type
+          path: selectedMedia.path,
+          type: selectedMedia.type
         }
       });
     } else {
-      logger.error(`❌ Failed to send media for user ${randomUserId} to ${errorCount} chats, succeeded: ${successCount}`);
+      logger.error(`❌ Failed to send media for user ${selectedUser.userId} to ${errorCount} chats, succeeded: ${successCount}`);
       res.status(500).json({ success: false, message: "Failed to send media to some chats", errorCount, successCount });
     }
 
@@ -427,80 +459,169 @@ exports.scheduledRandomUserMedia = onSchedule({
   try {
     logger.info("🕐 Scheduled function triggered - cycling through users");
 
-    // Get all users from status
-    const statusRef = db.ref('/status');
-    const statusSnapshot = await statusRef.once('value');
-    const allUsers = statusSnapshot.val();
-
-    if (!allUsers) {
-      logger.info("❌ No users found in status");
-      return;
-    }
-
-    // Convert to array and filter for hosts (status "b")
-    const userEntries = Object.entries(allUsers);
-    const hostUsers = userEntries.filter(([userId, userData]) => userData.status === "b");
-
-    if (hostUsers.length === 0) {
-      logger.info("❌ No host users found");
-      return;
-    }
-
-    // Get current index from database
-    const counterRef = db.ref('/scheduledUserCounter');
-    const counterSnapshot = await counterRef.once('value');
-    let currentIndex = counterSnapshot.val() || 0;
-
-    // Ensure index is within bounds
-    if (currentIndex >= hostUsers.length) {
-      currentIndex = 0; // Reset to first user
-    }
-
-    // Get the current user
-    const [currentUserId, currentUserData] = hostUsers[currentIndex];
-    logger.info(`🎯 Selected user ${currentIndex + 1}/${hostUsers.length}: ${currentUserId} (${currentUserData.nickname})`);
-
-    // Get media for the current user
-    const media = await getMedia(currentUserId);
-    if (!media) {
-      logger.info(`❌ No media found for user ${currentUserId}`);
-      // Move to next user even if no media
-      await counterRef.set((currentIndex + 1) % hostUsers.length);
-      return;
-    }
-
-    // Send media to Telegram
-    const caption = `🎉 ${currentUserData.nickname} is LIVE now! 🔥\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
+    // Check if function is already running (simple lock)
+    const lockRef = db.ref('/scheduledFunctionLock');
+    const lockSnapshot = await lockRef.once('value');
+    const lockData = lockSnapshot.val();
     
-    const sendPromises = CHAT_IDS.map(async (chatId) => {
-      console.log("xxxxxxxxxxxxxxxxxxxxxxxchatId", chatId);
-      const result = await sendMediaToTG(media.path, media.type, chatId, caption);
-      if (result.success) {
-        logger.info(`✅ Successfully sent media for user ${currentUserId} to Telegram chat ${chatId}`);
-        return { success: true, chatId };
-      } else {
-        logger.error(`❌ Failed to send media for user ${currentUserId} to chat ${chatId}:`, result.error);
-        return { success: false, chatId, error: result.error };
-      }
+    if (lockData && lockData.isRunning && (getVancouverTime() - lockData.timestamp) < 60000) {
+      logger.info("⚠️ Function already running, skipping this execution");
+      return;
+    }
+    
+    // Set lock
+    await lockRef.set({
+      isRunning: true,
+      timestamp: getVancouverTime()
     });
 
-    const results = await Promise.all(sendPromises);
-    const successCount = results.filter(r => r.success).length;
-    const errorCount = results.filter(r => !r.success).length;
-    
-    if (errorCount === 0) {
-      logger.info(`✅ Successfully sent media for user ${currentUserId} to all ${successCount} Telegram chats`);
-    } else {
-      logger.error(`❌ Failed to send media for user ${currentUserId} to ${errorCount} chats, succeeded: ${successCount}`);
-    }
+    try {
+      // Get current snapshot of users
+      const statusRef = db.ref('/status');
+      const statusSnapshot = await statusRef.once('value');
+      const allUsers = statusSnapshot.val();
 
-    // Move to next user (cycle back to 0 if at end)
-    const nextIndex = (currentIndex + 1) % hostUsers.length;
-    await counterRef.set(nextIndex);
-    logger.info(`🔄 Next user index: ${nextIndex}`);
+      if (!allUsers) {
+        logger.info("❌ No users found in status");
+        return;
+      }
+
+      // Convert to array and filter for hosts (status "b")
+      const userEntries = Object.entries(allUsers);
+      const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
+
+      if (hostUsers.length === 0) {
+        logger.info("❌ No host users found");
+        return;
+      }
+
+      // Get current snapshot and counter from database
+      const snapshotRef = db.ref('/scheduledUserSnapshot');
+      const counterRef = db.ref('/scheduledUserCounter');
+      
+      const [snapshotData, counterData] = await Promise.all([
+        snapshotRef.once('value'),
+        counterRef.once('value')
+      ]);
+      
+      let currentSnapshot = snapshotData.val();
+      let currentIndex = counterData.val() || 0;
+
+      // Check if we need a new snapshot
+      const currentSnapshotIds = currentSnapshot ? Object.keys(currentSnapshot) : [];
+      const currentHostIds = hostUsers.map(([userId]) => userId);
+      
+      const needsNewSnapshot = !currentSnapshot || 
+                             currentSnapshotIds.length !== currentHostIds.length ||
+                             !currentSnapshotIds.every(id => currentHostIds.includes(id));
+
+      if (needsNewSnapshot) {
+        logger.info("📸 Taking new snapshot of host users");
+        
+        // Create new snapshot with user IDs and data
+        const newSnapshot = {};
+        hostUsers.forEach(([userId, userData]) => {
+          newSnapshot[userId] = {
+            nickname: userData.nickname,
+            status: userData.status,
+            platform: userData.platform,
+            timestamp: getVancouverTime()
+          };
+        });
+        
+        // Save new snapshot and reset counter
+        await Promise.all([
+          snapshotRef.set(newSnapshot),
+          counterRef.set(0)
+        ]);
+        
+        currentSnapshot = newSnapshot;
+        currentIndex = 0;
+        
+        logger.info(`📸 New snapshot created with ${Object.keys(newSnapshot).length} users`);
+      }
+
+      // Get current user from snapshot
+      const snapshotUserIds = Object.keys(currentSnapshot);
+      if (snapshotUserIds.length === 0) {
+        logger.info("❌ No users in snapshot");
+        return;
+      }
+
+      // Ensure index is within bounds
+      if (currentIndex >= snapshotUserIds.length) {
+        currentIndex = 0; // Reset to first user
+      }
+
+      // Get the current user
+      const currentUserId = snapshotUserIds[currentIndex];
+      const currentUserData = currentSnapshot[currentUserId];
+      
+      logger.info(`🎯 Selected user ${currentIndex + 1}/${snapshotUserIds.length}: ${currentUserId} (${currentUserData.nickname})`);
+
+      // Get media for the current user
+      const media = await getMedia(currentUserId);
+      if (!media) {
+        logger.info(`❌ No media found for user ${currentUserId}`);
+        // Move to next user even if no media
+        await counterRef.set((currentIndex + 1) % snapshotUserIds.length);
+        return;
+      }
+
+      // Send media to Telegram
+      const caption = `🎉 ${currentUserData.nickname} is LIVE now! 🔥\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
+      
+      const sendPromises = CHAT_IDS.map(async (chatId) => {
+        const result = await sendMediaToTG(media.path, media.type, chatId, caption);
+        if (result.success) {
+          logger.info(`✅ Successfully sent media for user ${currentUserId} to Telegram chat ${chatId}`);
+          return { success: true, chatId };
+        } else {
+          logger.error(`❌ Failed to send media for user ${currentUserId} to chat ${chatId}:`, result.error);
+          return { success: false, chatId, error: result.error };
+        }
+      });
+
+      const results = await Promise.all(sendPromises);
+      const successCount = results.filter(r => r.success).length;
+      const errorCount = results.filter(r => !r.success).length;
+      
+      if (errorCount === 0) {
+        logger.info(`✅ Successfully sent media for user ${currentUserId} to all ${successCount} Telegram chats`);
+      } else {
+        logger.error(`❌ Failed to send media for user ${currentUserId} to ${errorCount} chats, succeeded: ${successCount}`);
+      }
+
+      // Move to next user (cycle back to 0 if at end)
+      const nextIndex = (currentIndex + 1) % snapshotUserIds.length;
+      await counterRef.set(nextIndex);
+      
+      // If we've completed the cycle, mark for new snapshot on next run
+      if (nextIndex === 0) {
+        logger.info("🔄 Completed cycle through all users in snapshot");
+      }
+      
+      logger.info(`🔄 Next user index: ${nextIndex}`);
+
+    } finally {
+      // Release lock
+      await lockRef.set({
+        isRunning: false,
+        timestamp: getVancouverTime()
+      });
+    }
 
   } catch (error) {
     logger.error("❌ Error in scheduled function:", error);
+    // Release lock on error
+    try {
+      await db.ref('/scheduledFunctionLock').set({
+        isRunning: false,
+        timestamp: getVancouverTime()
+      });
+    } catch (lockError) {
+      logger.error("❌ Error releasing lock:", lockError);
+    }
   }
 });
 
@@ -520,7 +641,6 @@ exports.testSendAd = onRequest(async (req, res) => {
 You'll always find one you like!`;
     
     const sendPromises = CHAT_IDS.map(async (chatId) => {
-      console.log("xxxxxxxxxxxxxxxxxxxxxxxchatId", chatId);
       const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption);
       if (result.success) {
         logger.info(`✅ Successfully sent ad to Telegram chat ${chatId}`);
@@ -568,7 +688,6 @@ exports.scheduledSendAd = onSchedule({
 You'll always find one you like!`;
     
     const sendPromises = CHAT_IDS.map(async (chatId) => {
-      console.log("xxxxxxxxxxxxxxxxxxxxxxxchatId", chatId);
       const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption);
       if (result.success) {
         logger.info(`✅ Successfully sent ad to Telegram chat ${chatId}`);
@@ -653,33 +772,147 @@ exports.resetUserCounter = onRequest(async (req, res) => {
       await db.ref('/scheduledUserCounter').set(0);
       logger.info("🔄 User counter reset to 0");
       res.status(200).json({ success: true, message: "User counter reset to 0" });
-    } else {
-      // View current status
-      const counterRef = db.ref('/scheduledUserCounter');
-      const counterSnapshot = await counterRef.once('value');
-      const currentIndex = counterSnapshot.val() || 0;
-      
-      // Get all users to show total count
+    } else if (action === 'new-snapshot') {
+      // Force a new snapshot
       const statusRef = db.ref('/status');
       const statusSnapshot = await statusRef.once('value');
       const allUsers = statusSnapshot.val();
       
+      if (!allUsers) {
+        res.status(200).json({ success: false, message: "No users found in status" });
+        return;
+      }
+      
+      const userEntries = Object.entries(allUsers);
+      const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
+      
+      if (hostUsers.length === 0) {
+        res.status(200).json({ success: false, message: "No host users found" });
+        return;
+      }
+      
+      // Create new snapshot
+      const newSnapshot = {};
+      hostUsers.forEach(([userId, userData]) => {
+        newSnapshot[userId] = {
+          nickname: userData.nickname,
+          status: userData.status,
+          platform: userData.platform,
+          timestamp: getVancouverTime()
+        };
+      });
+      
+      // Save new snapshot and reset counter
+      await Promise.all([
+        db.ref('/scheduledUserSnapshot').set(newSnapshot),
+        db.ref('/scheduledUserCounter').set(0)
+      ]);
+      
+      logger.info(`📸 New snapshot forced with ${Object.keys(newSnapshot).length} users`);
+      res.status(200).json({ 
+        success: true, 
+        message: `New snapshot created with ${Object.keys(newSnapshot).length} users`,
+        userCount: Object.keys(newSnapshot).length
+      });
+    } else {
+      // View current status
+      const [counterData, snapshotData] = await Promise.all([
+        db.ref('/scheduledUserCounter').once('value'),
+        db.ref('/scheduledUserSnapshot').once('value')
+      ]);
+      
+      const currentIndex = counterData.val() || 0;
+      const currentSnapshot = snapshotData.val();
+      
       let totalHosts = 0;
+      let snapshotInfo = null;
+      
+      if (currentSnapshot) {
+        totalHosts = Object.keys(currentSnapshot).length;
+        snapshotInfo = {
+          userCount: totalHosts,
+          timestamp: Object.values(currentSnapshot)[0]?.timestamp || 'Unknown',
+          users: Object.keys(currentSnapshot).slice(0, 5) // Show first 5 users
+        };
+      }
+      
+      // Get current status for comparison
+      const statusRef = db.ref('/status');
+      const statusSnapshot = await statusRef.once('value');
+      const allUsers = statusSnapshot.val();
+      
+      let currentHosts = 0;
       if (allUsers) {
         const userEntries = Object.entries(allUsers);
-        const hostUsers = userEntries.filter(([userId, userData]) => userData.status === "b");
-        totalHosts = hostUsers.length;
+        const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
+        currentHosts = hostUsers.length;
       }
       
       res.status(200).json({ 
         success: true, 
         currentIndex,
-        totalHosts,
-        message: `Current index: ${currentIndex}, Total hosts: ${totalHosts}`
+        snapshotHosts: totalHosts,
+        currentHosts,
+        needsNewSnapshot: totalHosts !== currentHosts,
+        snapshotInfo,
+        message: `Current index: ${currentIndex}, Snapshot hosts: ${totalHosts}, Current hosts: ${currentHosts}`
       });
     }
   } catch (error) {
     logger.error("❌ Error in resetUserCounter:", error);
+    res.status(500).json({ success: false, message: "Error occurred", error: error.message });
+  }
+});
+
+// Test function to demonstrate snapshot-based user cycling
+exports.testSnapshotCycling = onRequest(async (req, res) => {
+  try {
+    logger.info("🧪 Test snapshot cycling function triggered");
+
+    // Get current snapshot of users
+    const statusRef = db.ref('/status');
+    const statusSnapshot = await statusRef.once('value');
+    const allUsers = statusSnapshot.val();
+
+    if (!allUsers) {
+      logger.info("❌ No users found in status");
+      res.status(200).json({ success: false, message: "No users found" });
+      return;
+    }
+
+    // Convert to array and filter for hosts (status "b")
+    const userEntries = Object.entries(allUsers);
+    const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
+
+    if (hostUsers.length === 0) {
+      logger.info("❌ No host users found");
+      res.status(200).json({ success: false, message: "No host users found" });
+      return;
+    }
+
+    // Create snapshot for testing
+    const testSnapshot = {};
+    hostUsers.forEach(([userId, userData]) => {
+      testSnapshot[userId] = {
+        nickname: userData.nickname,
+        status: userData.status,
+        platform: userData.platform,
+        timestamp: getVancouverTime()
+      };
+    });
+
+    const snapshotUserIds = Object.keys(testSnapshot);
+    
+    res.status(200).json({
+      success: true,
+      message: `Snapshot created with ${snapshotUserIds.length} users`,
+      userCount: snapshotUserIds.length,
+      users: snapshotUserIds.slice(0, 10), // Show first 10 users
+      sampleUser: testSnapshot[snapshotUserIds[0]] || null
+    });
+
+  } catch (error) {
+    logger.error("❌ Error in testSnapshotCycling:", error);
     res.status(500).json({ success: false, message: "Error occurred", error: error.message });
   }
 });

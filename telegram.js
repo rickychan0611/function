@@ -9,7 +9,6 @@ const botToken = "8046669247:AAF4lMRGlcJWJMM2iykXLH9G_3moBS-rZvc";
 // Helper function to get media from AvatarLive API
 const getMedia = async (id) => {
   try {
-    console.log("xxxxxxxxxxxxxxxxxxxxxxxgetMedia", id);
     const gettoken = await axios.post("https://avatarlive.ai/api/user/login", {
       email: "firebase@pop.com",
       password: "96e79218965eb72c92a549dd5a330112",
@@ -20,37 +19,35 @@ const getMedia = async (id) => {
       }
     });
 
-    const url = "https://avatarlive.ai/api/post/getBroadcasterPosts?page=1&limit=200&type=2&account_id=" + id;
+    const url = `https://avatarlive.ai/api/post/getBroadcasterPosts?page=1&limit=200&type=2&account_id=${id}`;
 
     const token = gettoken.data.data.access_token;
-    console.log("vvvvvvvvvvvvvvvvvvvvvvvvvv:", token);
     const result = await axios.get(url, {
       headers: {
         "Authorization": "Bearer " + token,
         "Content-Type": "application/json"
       }
     });
-    console.log("API response:", result.data);
 
     const posts = result.data.data.posts_list;
     if (!posts || posts.length === 0) {
-      console.log("No posts found for userId:", id);
+      logger.info(`No posts found for userId: ${id}`);
       return null;
     }
 
     const filteredPosts = posts.filter(post => post.paid_content === 0);
     if (filteredPosts.length === 0) {
-      console.log("No free posts found for userId:", id);
+      logger.info(`No free posts found for userId: ${id}`);
       return null;
     }
 
     const index = Math.floor(Math.random() * filteredPosts.length);
     const selectedPost = filteredPosts[index];
-    console.log("Selected post:", selectedPost);
+    logger.info(`Selected post for user ${id}:`, selectedPost);
 
     return selectedPost;
   } catch (error) {
-    console.error("Error fetching media URL:", error.response?.data || error.message);
+    logger.error("Error fetching media URL:", error.response?.data || error.message);
     return null;
   }
 };
@@ -91,7 +88,7 @@ const sendMediaToTG = async (url, type, chat_id, caption) => {
 };
 
 // Helper function to send message to Telegram group
-const sendTelegramMessage = async (messageText = "🔥 Hello group from Firebase!") => {
+const sendTelegramMessage = async (messageText = "🔥 Hello group from Firebase!", chatId) => {
   try {
     const telegramURL = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
