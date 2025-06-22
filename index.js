@@ -21,12 +21,12 @@ admin.initializeApp();
 // Telegram bot configuration
 const CHAT_IDS = [
   "-1002673859693", // https://t.me/pomchatdev
-  // "-1002412279665", // https://t.me/pomchatpop
-  // "-1002642186417", // https://t.me/pomchatvip
-  // "-1002603412953", // https://t.me/pomchatlive
-  // "-1002560028339", // https://t.me/pomchat
-  // "-1002559668222", // https://t.me/pombabe
-  // "-1002307647703", // https://t.me/pomchat06
+  "-1002412279665", // https://t.me/pomchatpop
+  "-1002642186417", // https://t.me/pomchatvip
+  "-1002603412953", // https://t.me/pomchatlive
+  "-1002560028339", // https://t.me/pomchat
+  "-1002559668222", // https://t.me/pombabe
+  "-1002307647703", // https://t.me/pomchat06
 ]; 
 
 const db = admin.database();
@@ -507,13 +507,11 @@ exports.scheduledRandomUserMedia = onSchedule({
       let currentSnapshot = snapshotData.val();
       let currentIndex = counterData.val() || 0;
 
-      // Check if we need a new snapshot
+      // Check if we need a new snapshot (only if no snapshot exists)
       const currentSnapshotIds = currentSnapshot ? Object.keys(currentSnapshot) : [];
       const currentHostIds = hostUsers.map(([userId]) => userId);
       
-      const needsNewSnapshot = !currentSnapshot || 
-                             currentSnapshotIds.length !== currentHostIds.length ||
-                             !currentSnapshotIds.every(id => currentHostIds.includes(id));
+      const needsNewSnapshot = !currentSnapshot;
 
       if (needsNewSnapshot) {
         logger.info("📸 Taking new snapshot of host users");
@@ -596,9 +594,27 @@ exports.scheduledRandomUserMedia = onSchedule({
       const nextIndex = (currentIndex + 1) % snapshotUserIds.length;
       await counterRef.set(nextIndex);
       
-      // If we've completed the cycle, mark for new snapshot on next run
+      // If we've completed the cycle, create a new snapshot for next cycle
       if (nextIndex === 0) {
         logger.info("🔄 Completed cycle through all users in snapshot");
+        
+        // Always create new snapshot after completing a cycle
+        logger.info("📸 Creating new snapshot for next cycle");
+        
+        // Create new snapshot with current host users
+        const newSnapshot = {};
+        hostUsers.forEach(([userId, userData]) => {
+          newSnapshot[userId] = {
+            nickname: userData.nickname,
+            status: userData.status,
+            platform: userData.platform,
+            timestamp: getVancouverTime()
+          };
+        });
+        
+        // Save new snapshot (counter will start at 0 on next run)
+        await snapshotRef.set(newSnapshot);
+        logger.info(`📸 New snapshot created with ${Object.keys(newSnapshot).length} users for next cycle`);
       }
       
       logger.info(`🔄 Next user index: ${nextIndex}`);
