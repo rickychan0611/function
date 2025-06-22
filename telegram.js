@@ -20,7 +20,7 @@ const getMedia = async (id) => {
       }
     });
 
-    const url = "https://avatarlive.ai/api/post/getBroadcasterPosts?page=1&limit=70&type=2&account_id=" + id;
+    const url = "https://avatarlive.ai/api/post/getBroadcasterPosts?page=1&limit=200&type=2&account_id=" + id;
 
     const token = gettoken.data.data.access_token;
     console.log("vvvvvvvvvvvvvvvvvvvvvvvvvv:", token);
@@ -68,6 +68,12 @@ const sendMediaToTG = async (url, type, chat_id, caption) => {
         inline_keyboard: [
           [
             {
+              text: "1on1 Video Chat",
+              url: "https://t.me/pomchatpopbot/pomchat"
+            }
+          ],
+          [
+            {
               text: "Start now!",
               url: "https://t.me/pomchatpopbot/pomchat"
             }
@@ -102,6 +108,50 @@ const sendTelegramMessage = async (messageText = "🔥 Hello group from Firebase
     return { success: false, error: error.response?.data || error.message };
   }
 };
+
+// Helper function to send audio with photo to Telegram group
+// const sendAudioWithPhotoToTG = async (photoUrl, audioUrl, chat_id, caption) => {
+//   try {
+//     // First send the photo
+//     const photoURL = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+//     const photoResponse = await axios.post(photoURL, {
+//       chat_id,
+//       photo: photoUrl,
+//       caption,
+//       parse_mode: "HTML",
+//       reply_markup: {
+//         inline_keyboard: [
+//           [
+//             {
+//               text: "1on1 Video Chat",
+//               url: "https://t.me/pomchatpopbot/pomchat"
+//             }
+//           ],
+//           [
+//             {
+//               text: "Start now!",
+//               url: "https://t.me/pomchatpopbot/pomchat"
+//             }
+//           ]
+//         ]
+//       }
+//     });
+
+//     // Then send the audio
+//     const audioURL = `https://api.telegram.org/bot${botToken}/sendAudio`;
+//     const audioResponse = await axios.post(audioURL, {
+//       chat_id,
+//       audio: audioUrl,
+//       parse_mode: "HTML"
+//     });
+
+//     logger.info("✅ Photo and audio sent:", { photo: photoResponse.data, audio: audioResponse.data });
+//     return { success: true, data: { photo: photoResponse.data, audio: audioResponse.data } };
+//   } catch (error) {
+//     logger.error("❌ Failed to send audio with photo:", error.response?.data || error.message);
+//     return { success: false, error: error.response?.data || error.message };
+//   }
+// };
 
 // Telegram bot webhook
 const telegramWebhook = (req, res) => {
@@ -145,5 +195,6 @@ module.exports = {
   sendMediaToTG,
   sendTelegramMessage,
   telegramWebhook,
-  sendHostToGroup
+  sendHostToGroup,
+  // sendAudioWithPhotoToTG
 }; 

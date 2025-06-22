@@ -419,14 +419,13 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
   }
 });
 
-// Cloud Scheduler function that runs every 1 minute (minimum supported interval)
-// Note: Cloud Scheduler doesn't support intervals shorter than 1 minute
+// Cloud Scheduler function that runs every 1 minute
 exports.scheduledRandomUserMedia = onSchedule({
   schedule: "every 1 minutes", 
   timeZone: "America/Vancouver"
 }, async (event) => {
   try {
-    logger.info("🕐 Scheduled function triggered - getting random user");
+    logger.info("🕐 Scheduled function triggered - cycling through users");
 
     // Get all users from status
     const statusRef = db.ref('/status');
@@ -438,39 +437,49 @@ exports.scheduledRandomUserMedia = onSchedule({
       return;
     }
 
-    // Convert to array and filter out hosts (status "b")
+    // Convert to array and filter for hosts (status "b")
     const userEntries = Object.entries(allUsers);
-    const nonHostUsers = userEntries.filter(([userId, userData]) => userData.status === "b");
+    const hostUsers = userEntries.filter(([userId, userData]) => userData.status === "b");
 
-    if (nonHostUsers.length === 0) {
+    if (hostUsers.length === 0) {
       logger.info("❌ No host users found");
       return;
     }
 
-    // Select random user
-    const randomIndex = Math.floor(Math.random() * nonHostUsers.length);
-    const [randomUserId, randomUserData] = nonHostUsers[randomIndex];
+    // Get current index from database
+    const counterRef = db.ref('/scheduledUserCounter');
+    const counterSnapshot = await counterRef.once('value');
+    let currentIndex = counterSnapshot.val() || 0;
 
-    logger.info(`🎲 Selected random user: ${randomUserId} (${randomUserData.nickname})`);
+    // Ensure index is within bounds
+    if (currentIndex >= hostUsers.length) {
+      currentIndex = 0; // Reset to first user
+    }
 
-    // Get media for the random user (using userId as account_id)
-    const media = await getMedia(randomUserId);
+    // Get the current user
+    const [currentUserId, currentUserData] = hostUsers[currentIndex];
+    logger.info(`🎯 Selected user ${currentIndex + 1}/${hostUsers.length}: ${currentUserId} (${currentUserData.nickname})`);
+
+    // Get media for the current user
+    const media = await getMedia(currentUserId);
     if (!media) {
-      logger.info(`❌ No media found for user ${randomUserId}`);
+      logger.info(`❌ No media found for user ${currentUserId}`);
+      // Move to next user even if no media
+      await counterRef.set((currentIndex + 1) % hostUsers.length);
       return;
     }
 
     // Send media to Telegram
-    const caption = `🎉 ${randomUserData.nickname} is LIVE now! 🔥\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
+    const caption = `🎉 ${currentUserData.nickname} is LIVE now! 🔥\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
     
     const sendPromises = CHAT_IDS.map(async (chatId) => {
       console.log("xxxxxxxxxxxxxxxxxxxxxxxchatId", chatId);
       const result = await sendMediaToTG(media.path, media.type, chatId, caption);
       if (result.success) {
-        logger.info(`✅ Successfully sent media for user ${randomUserId} to Telegram chat ${chatId}`);
+        logger.info(`✅ Successfully sent media for user ${currentUserId} to Telegram chat ${chatId}`);
         return { success: true, chatId };
       } else {
-        logger.error(`❌ Failed to send media for user ${randomUserId} to chat ${chatId}:`, result.error);
+        logger.error(`❌ Failed to send media for user ${currentUserId} to chat ${chatId}:`, result.error);
         return { success: false, chatId, error: result.error };
       }
     });
@@ -480,10 +489,15 @@ exports.scheduledRandomUserMedia = onSchedule({
     const errorCount = results.filter(r => !r.success).length;
     
     if (errorCount === 0) {
-      logger.info(`✅ Successfully sent media for user ${randomUserId} to all ${successCount} Telegram chats`);
+      logger.info(`✅ Successfully sent media for user ${currentUserId} to all ${successCount} Telegram chats`);
     } else {
-      logger.error(`❌ Failed to send media for user ${randomUserId} to ${errorCount} chats, succeeded: ${successCount}`);
+      logger.error(`❌ Failed to send media for user ${currentUserId} to ${errorCount} chats, succeeded: ${successCount}`);
     }
+
+    // Move to next user (cycle back to 0 if at end)
+    const nextIndex = (currentIndex + 1) % hostUsers.length;
+    await counterRef.set(nextIndex);
+    logger.info(`🔄 Next user index: ${nextIndex}`);
 
   } catch (error) {
     logger.error("❌ Error in scheduled function:", error);
@@ -577,6 +591,96 @@ You'll always find one you like!`;
 
   } catch (error) {
     logger.error("❌ Error in scheduledSendAd:", error);
+  }
+});
+
+// Test function to send audio with photo
+// exports.testSendAudioWithPhoto = onRequest(async (req, res) => {
+//   try {
+//     const caption = `❤️ 1on1 Video Chat 💋
+
+//   ⏺️ White Black Asian girls
+//   ⏺️ students, accountants, teachers, nurses, part-time worker 
+//   ⏺️ AI voice translator
+
+// 💋 Alive AI Girlfriend
+// ⏺️ Every AI is based on a real hostess you can Video Call
+
+// 🔥 Exclusive videos and photos of the hosts
+
+// You'll always find one you like!`;
+    
+//     // Example URLs - replace with your actual photo and audio URLs
+//     const photoUrl = "https://pomchat.live/ad.jpg";
+//     const audioUrl = "https://example.com/audio.mp3"; // Replace with your audio URL
+    
+//     const sendPromises = CHAT_IDS.map(async (chatId) => {
+//       console.log("xxxxxxxxxxxxxxxxxxxxxxxchatId", chatId);
+//       const result = await sendAudioWithPhotoToTG(photoUrl, audioUrl, chatId, caption);
+//       if (result.success) {
+//         logger.info(`✅ Successfully sent audio with photo to Telegram chat ${chatId}`);
+//         return { success: true, chatId };
+//       } else {
+//         logger.error(`❌ Failed to send audio with photo to chat ${chatId}:`, result.error);
+//         return { success: false, chatId, error: result.error };
+//       }
+//     });
+
+//     const results = await Promise.all(sendPromises);
+//     const successCount = results.filter(r => r.success).length;
+//     const errorCount = results.filter(r => !r.success).length;
+    
+//     if (errorCount === 0) {
+//       logger.info("✅ Successfully sent audio with photo to all Telegram chats");
+//       res.status(200).json({ success: true, message: `Audio with photo sent successfully to ${successCount} chats` });
+//     } else {
+//       logger.error(`❌ Failed to send audio with photo to ${errorCount} chats`);
+//       res.status(500).json({ success: false, message: `Failed to send audio with photo to ${errorCount} chats`, successCount, errorCount });
+//     }
+//   } catch (error) {
+//     logger.error("❌ Error in testSendAudioWithPhoto:", error);
+//     res.status(500).json({ success: false, message: "Error occurred", error: error.message });
+//   }
+// });
+
+// Function to reset the user counter and view current status
+exports.resetUserCounter = onRequest(async (req, res) => {
+  try {
+    const action = req.query.action || 'view';
+    
+    if (action === 'reset') {
+      // Reset counter to 0
+      await db.ref('/scheduledUserCounter').set(0);
+      logger.info("🔄 User counter reset to 0");
+      res.status(200).json({ success: true, message: "User counter reset to 0" });
+    } else {
+      // View current status
+      const counterRef = db.ref('/scheduledUserCounter');
+      const counterSnapshot = await counterRef.once('value');
+      const currentIndex = counterSnapshot.val() || 0;
+      
+      // Get all users to show total count
+      const statusRef = db.ref('/status');
+      const statusSnapshot = await statusRef.once('value');
+      const allUsers = statusSnapshot.val();
+      
+      let totalHosts = 0;
+      if (allUsers) {
+        const userEntries = Object.entries(allUsers);
+        const hostUsers = userEntries.filter(([userId, userData]) => userData.status === "b");
+        totalHosts = hostUsers.length;
+      }
+      
+      res.status(200).json({ 
+        success: true, 
+        currentIndex,
+        totalHosts,
+        message: `Current index: ${currentIndex}, Total hosts: ${totalHosts}`
+      });
+    }
+  } catch (error) {
+    logger.error("❌ Error in resetUserCounter:", error);
+    res.status(500).json({ success: false, message: "Error occurred", error: error.message });
   }
 });
 
