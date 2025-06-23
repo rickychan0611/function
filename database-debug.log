@@ -3,21 +3,8 @@ WARNING: Illegal reflective access by io.netty.util.internal.ReflectionUtil (fil
 WARNING: Please consider reporting this to the maintainers of io.netty.util.internal.ReflectionUtil
 WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
 WARNING: All illegal access operations will be denied in a future release
-15:08:57.131 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
-15:08:57.412 [main] INFO com.firebase.server.forge.App$ - Listening at 127.0.0.1:9003
-15:09:05.293 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO com.firebase.core.namespace.NamespaceActor - fake-server successfully activated FBKV (SurveyIdle(0)) wait: 147ms, init: 0ms
-15:09:05.352 [NamespaceSystem-blocking-namespace-operation-dispatcher-6] INFO com.firebase.core.namespace.StateManager - Namespace fake-server status Active to Active
-15:09:05.385 [NamespaceSystem-blocking-namespace-operation-dispatcher-6] INFO com.firebase.core.namespace.StateManager - Namespace fake-server status Active to Active
-15:09:11.958 [FirebaseWorkerPool-1-3] WARN com.firebase.core.persistence.backend.dummy.EmulatorMetadataPersistence - Multiple projectIds are not recommended in single project mode. Requested 
-namespace popchatv002, but the emulator is configured for fake-server. To 
-opt-out of single project mode add/set the singleProjectMode: false property in 
-the firebase.json emulators config. 
-15:09:11.965 [NamespaceSystem-akka.actor.default-dispatcher-7] INFO com.firebase.core.namespace.NamespaceActor - popchatv002 successfully activated FBKV (SurveyIdle(0)) wait: 3ms, init: 0ms
-15:09:24.651 [FirebaseWorkerPool-1-3] WARN com.firebase.core.persistence.backend.dummy.EmulatorMetadataPersistence - Multiple projectIds are not recommended in single project mode. Requested 
-namespace popchatv002-default-rtdb, but the emulator is configured for popchatv002,fake-server. To 
-opt-out of single project mode add/set the singleProjectMode: false property in 
-the firebase.json emulators config. 
-15:09:24.655 [NamespaceSystem-akka.actor.default-dispatcher-7] INFO com.firebase.core.namespace.NamespaceActor - popchatv002-default-rtdb successfully activated FBKV (SurveyIdle(0)) wait: 2ms, init: 0ms
-15:09:24.739 [NamespaceSystem-blocking-namespace-operation-dispatcher-11] INFO com.firebase.core.stats.EventAuditLog - {"eventId":"w7oyJKUEEhK1b4lRihw9ibcIpjg=","namespace":"popchatv002-default-rtdb","projectNumber":"123456789","eventType":"google.firebase.database.ref.v1.created","flowName":"projects/popchatv002/topics/us-central1-trackUserSessionCreate-0","resource":"projects/_/instances/popchatv002-default-rtdb/refs/status/94029526-49d5-41f2-8fee-9e42f35c2e37","evaluationTimestamp":"2025-06-22T22:09:24.691Z","stage":"TRIGGERED"}
-15:09:38.114 [NamespaceSystem-blocking-namespace-operation-dispatcher-15] INFO com.firebase.core.stats.EventAuditLog - {"eventId":"8y52pa3jviewxa+Iqn8RnULMDs8=","namespace":"popchatv002-default-rtdb","projectNumber":"123456789","eventType":"google.firebase.database.ref.v1.created","flowName":"projects/popchatv002/topics/us-central1-trackUserSessionCreate-0","resource":"projects/_/instances/popchatv002-default-rtdb/refs/status/c21098b9-113d-492a-be32-39fdd482ffd23","evaluationTimestamp":"2025-06-22T22:09:38.113Z","stage":"TRIGGERED"}
-15:13:39.085 [NamespaceSystem-blocking-namespace-operation-dispatcher-54] INFO com.firebase.core.stats.EventAuditLog - {"eventId":"Y5Olyh8dQeu8fMBq44DopHF5qHE=","namespace":"popchatv002-default-rtdb","projectNumber":"123456789","eventType":"google.firebase.database.ref.v1.created","flowName":"projects/popchatv002/topics/us-central1-trackUserSessionCreate-0","resource":"projects/_/instances/popchatv002-default-rtdb/refs/status/38585d63-e6f8-45ad-923f-9fc8feaa7f87","evaluationTimestamp":"2025-06-22T22:13:39.084Z","stage":"TRIGGERED"}
+13:24:51.838 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+13:24:52.184 [main] INFO com.firebase.server.forge.App$ - Listening at 127.0.0.1:9004
+13:25:00.660 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO com.firebase.core.namespace.NamespaceActor - fake-server successfully activated FBKV (SurveyIdle(0)) wait: 188ms, init: 0ms
+13:25:00.745 [NamespaceSystem-blocking-namespace-operation-dispatcher-7] INFO com.firebase.core.namespace.StateManager - Namespace fake-server status Active to Active
+13:25:00.784 [NamespaceSystem-blocking-namespace-operation-dispatcher-7] INFO com.firebase.core.namespace.StateManager - Namespace fake-server status Active to Active

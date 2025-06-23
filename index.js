@@ -308,30 +308,30 @@ exports.trackUserSessionDelete = onValueDeleted("/status/{userId}", async (event
 });
 
 // Telegram bot webhook !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! important
-// exports.telegramWebhook = onRequest((req, res) => {
-//   logger.info("📥 Telegram Update:", req.body);
+exports.telegramWebhook = onRequest((req, res) => {
+  logger.info("📥 Telegram Update:", req.body);
 
-//   const chat = req.body?.message?.chat;
-//   const message = req.body?.message?.text;
-//   const from = req.body?.message?.from;
+  const chat = req.body?.message?.chat;
+  const message = req.body?.message?.text;
+  const from = req.body?.message?.from;
 
-//   if (chat) {
-//     logger.info(`📢 Chat ID: ${chat.id}`);
-//     logger.info(`💬 Chat Type: ${chat.type}`);
-//     logger.info(`📝 Chat Title: ${chat.title || 'Private Chat'}`);
-//   }
+  if (chat) {
+    logger.info(`📢 Chat ID: ${chat.id}`);
+    logger.info(`💬 Chat Type: ${chat.type}`);
+    logger.info(`📝 Chat Title: ${chat.title || 'Private Chat'}`);
+  }
 
-//   if (from) {
-//     logger.info(`👤 From User: ${from.first_name} ${from.last_name || ''} (ID: ${from.id})`);
-//     logger.info(`🔗 Username: @${from.username || 'No username'}`);
-//   }
+  if (from) {
+    logger.info(`👤 From User: ${from.first_name} ${from.last_name || ''} (ID: ${from.id})`);
+    logger.info(`🔗 Username: @${from.username || 'No username'}`);
+  }
 
-//   if (message) {
-//     logger.info(`💭 Message: "${message}"`);
-//   }
+  if (message) {
+    logger.info(`💭 Message: "${message}"`);
+  }
 
-//   res.sendStatus(200);
-// });
+  res.sendStatus(200);
+});
 
 
 // Test function to manually trigger the scheduled logic
@@ -453,7 +453,7 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
 
 // Cloud Scheduler function that runs every 1 minute
 exports.scheduledRandomUserMedia = onSchedule({
-  schedule: "every 1 minutes", 
+  schedule: "every 5 minutes", 
   timeZone: "America/Vancouver"
 }, async (event) => {
   try {
