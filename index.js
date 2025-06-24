@@ -16,6 +16,9 @@ const { DateTime } = require('luxon');
 const { getMedia, sendMediaToTG, sendTelegramMessage, telegramWebhook, sendHostToGroup } = require("./telegram");
 const { messages } = require("./messages");
 const { labels } = require("./labels");
+const { chinese_messages } = require("./chinese_message");
+const { chinese_labels } = require("./chinese_label");
+
 admin.initializeApp();
 
 // Telegram bot configuration
@@ -24,10 +27,10 @@ const CHAT_IDS = [
   "-1002412279665", // https://t.me/pomchatpop
   "-1002642186417", // https://t.me/pomchatvip
   "-1002603412953", // https://t.me/pomchatlive
-  "-1002560028339", // https://t.me/pomchat
+  "-1002560028339", // https://t.me/pomchat //Pomchatvvip 全球果聊
   "-1002559668222", // https://t.me/pombabe
   "-1002307647703", // https://t.me/pomchat06
-]; 
+];
 
 const db = admin.database();
 
@@ -203,51 +206,6 @@ exports.trackUserSessionCreate = onValueCreated("/status/{userId}", async (event
     status: sessionData.status || currentStats.status
   });
 
-
-  // logSessionData('SESSION_STARTED', userId, sessionData);
-  // console.log("xxxxxxxxxxxxxxxxxxxxxxxsessionData.status", userId, sessionData.status);
-  // //send host to tg group
-  // if (sessionData.status === "b") {
-  //   // Check if user was recently online (within 5 minutes)
-  //   const activeSessionRef = db.ref(`/activeSessions/${userId}`);
-  //   // const activeSession = await activeSessionRef.once('value');
-  //   // const existingSession = activeSession.val();
-  //   // const fiveMinutesAgo = getVancouverTime() - (5 * 60 * 1000); // 5 minutes in milliseconds
-  //   // const wasRecentlyOnline = existingSession && existingSession.lastSeen > fiveMinutesAg
-  //   // if (!wasRecentlyOnline) {
-  //   // // if (true) {
-  //   //   console.log("xxxxxxxxxxxxxxxxxxxxxxxuserId", userId);
-  //   //   const media = await getMedia(userId);
-  //   //   if (media) {
-  //   //     const caption = `🎉 ${sessionData.nickname} is LIVE now!🔥📽️\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
-  //   //     const sendPromises = CHAT_IDS.map(async (chatId) => {
-  //   //       console.log("xxxxxxxxxxxxxxxxxxxxxxxchatId", chatId);
-  //   //       const result = await sendMediaToTG(media.path, media.type, chatId, caption);
-  //   //       if (result.success) {
-  //   //         logger.info(`✅ Successfully sent media for user ${userId} to Telegram chat ${chatId}`);
-  //   //         return { success: true, chatId };
-  //   //       } else {
-  //   //         logger.error(`❌ Failed to send media for user ${userId} to chat ${chatId}:`, result.error);
-  //   //         return { success: false, chatId, error: result.error };
-  //   //       }
-  //   //     });
-
-  //   //     const results = await Promise.all(sendPromises);
-  //   //     const successCount = results.filter(r => r.success).length;
-  //   //     const errorCount = results.filter(r => !r.success).length;
-        
-  //   //     if (errorCount === 0) {
-  //   //       logger.info(`✅ Successfully sent media for user ${userId} to all ${successCount} Telegram chats`);
-  //   //     } else {
-  //   //       logger.error(`❌ Failed to send media for user ${userId} to ${errorCount} chats, succeeded: ${successCount}`);
-  //   //     }
-  //   //   }
-  //   // } else {
-  //   //   console.log(`User ${userId} was recently online (within 5 minutes), skipping media send`);
-  //   // }
-  // }
-  // Send notification to Telegram group  
-
   return null;
 });
 
@@ -339,6 +297,10 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
   try {
     logger.info("🧪 Test function triggered - getting random user");
 
+    // Get chatId from query parameter, default to first chat in CHAT_IDS
+    const chatId = req.query.chatId || CHAT_IDS[0];
+    logger.info(`📱 Target chat ID: ${chatId}`);
+
     // Get all users from status
     const statusRef = db.ref('/status');
     const statusSnapshot = await statusRef.once('value');
@@ -370,16 +332,16 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
     for (let i = 0; i < maxAttempts; i++) {
       // Filter out already tried users
       const availableUsers = hostUsers.filter(([userId]) => !triedUsers.has(userId));
-      
+
       if (availableUsers.length === 0) {
         logger.info("❌ No more users to try");
         break;
       }
-      
+
       // Select random user from remaining users
       const randomIndex = Math.floor(Math.random() * availableUsers.length);
       const [randomUserId, randomUserData] = availableUsers[randomIndex];
-      
+
       attempts++;
       logger.info(`🎲 Attempt ${attempts}: Trying user ${randomUserId} (${randomUserData.nickname})`);
 
@@ -398,38 +360,28 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
 
     if (!selectedUser || !selectedMedia) {
       logger.info(`❌ No media found after trying ${attempts} users`);
-      res.status(200).json({ 
-        success: false, 
+      res.status(200).json({
+        success: false,
         message: `No media found after trying ${attempts} users`,
         attempts: attempts
       });
       return;
     }
 
-    // Send media to Telegram
-    const caption = `🎉 ${selectedUser.userData.nickname} is LIVE now!  💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
-    
-    const sendPromises = CHAT_IDS.map(async (chatId) => {
-      const result = await sendMediaToTG(selectedMedia.path, selectedMedia.type, chatId, caption);
-      if (result.success) {
-        logger.info(`✅ Successfully sent media for user ${selectedUser.userId} to Telegram chat ${chatId}`);
-        return { success: true, chatId };
-      } else {
-        logger.error(`❌ Failed to send media for user ${selectedUser.userId} to chat ${chatId}:`, result.error);
-        return { success: false, chatId, error: result.error };
-      }
-    });
+    // Send media to specific chat
+    const isChinese = chatId === "-1002560028339";
+    const caption = isChinese ?
+      `🎉 ${selectedUser.userData.nickname} 在线! 💋🔥  真人女孩  💃👀\n\n ${chinese_messages[Math.floor(Math.random() * chinese_messages.length)]} \n\n ${chinese_labels[Math.floor(Math.random() * chinese_labels.length)]}` :
+      `🎉 ${selectedUser.userData.nickname} is LIVE now!  💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
 
-    const results = await Promise.all(sendPromises);
-    const successCount = results.filter(r => r.success).length;
-    const errorCount = results.filter(r => !r.success).length;
-    
-    if (errorCount === 0) {
-      logger.info(`✅ Successfully sent media for user ${selectedUser.userId} to all ${successCount} Telegram chats`);
+    const result = await sendMediaToTG(selectedMedia.path, selectedMedia.type, chatId, caption, isChinese);
+    if (result.success) {
+      logger.info(`✅ Successfully sent media for user ${selectedUser.userId} to Telegram chat ${chatId}`);
       res.status(200).json({
         success: true,
         message: "Media sent successfully",
         attempts: attempts,
+        targetChatId: chatId,
         user: {
           id: selectedUser.userId,
           nickname: selectedUser.userData.nickname,
@@ -441,8 +393,13 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
         }
       });
     } else {
-      logger.error(`❌ Failed to send media for user ${selectedUser.userId} to ${errorCount} chats, succeeded: ${successCount}`);
-      res.status(500).json({ success: false, message: "Failed to send media to some chats", errorCount, successCount });
+      logger.error(`❌ Failed to send media for user ${selectedUser.userId} to chat ${chatId}:`, result.error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to send media", 
+        targetChatId: chatId,
+        error: result.error 
+      });
     }
 
   } catch (error) {
@@ -453,7 +410,7 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
 
 // Cloud Scheduler function that runs every 1 minute
 exports.scheduledRandomUserMedia = onSchedule({
-  schedule: "every 5 minutes", 
+  schedule: "every 5 minutes",
   timeZone: "America/Vancouver"
 }, async (event) => {
   try {
@@ -463,12 +420,12 @@ exports.scheduledRandomUserMedia = onSchedule({
     const lockRef = db.ref('/scheduledFunctionLock');
     const lockSnapshot = await lockRef.once('value');
     const lockData = lockSnapshot.val();
-    
+
     if (lockData && lockData.isRunning && (getVancouverTime() - lockData.timestamp) < 60000) {
       logger.info("⚠️ Function already running, skipping this execution");
       return;
     }
-    
+
     // Set lock
     await lockRef.set({
       isRunning: true,
@@ -498,24 +455,24 @@ exports.scheduledRandomUserMedia = onSchedule({
       // Get current snapshot and counter from database
       const snapshotRef = db.ref('/scheduledUserSnapshot');
       const counterRef = db.ref('/scheduledUserCounter');
-      
+
       const [snapshotData, counterData] = await Promise.all([
         snapshotRef.once('value'),
         counterRef.once('value')
       ]);
-      
+
       let currentSnapshot = snapshotData.val();
       let currentIndex = counterData.val() || 0;
 
       // Check if we need a new snapshot (only if no snapshot exists)
       const currentSnapshotIds = currentSnapshot ? Object.keys(currentSnapshot) : [];
       const currentHostIds = hostUsers.map(([userId]) => userId);
-      
+
       const needsNewSnapshot = !currentSnapshot;
 
       if (needsNewSnapshot) {
         logger.info("📸 Taking new snapshot of host users");
-        
+
         // Create new snapshot with user IDs and data
         const newSnapshot = {};
         hostUsers.forEach(([userId, userData]) => {
@@ -526,16 +483,16 @@ exports.scheduledRandomUserMedia = onSchedule({
             timestamp: getVancouverTime()
           };
         });
-        
+
         // Save new snapshot and reset counter
         await Promise.all([
           snapshotRef.set(newSnapshot),
           counterRef.set(0)
         ]);
-        
+
         currentSnapshot = newSnapshot;
         currentIndex = 0;
-        
+
         logger.info(`📸 New snapshot created with ${Object.keys(newSnapshot).length} users`);
       }
 
@@ -554,7 +511,7 @@ exports.scheduledRandomUserMedia = onSchedule({
       // Get the current user
       const currentUserId = snapshotUserIds[currentIndex];
       const currentUserData = currentSnapshot[currentUserId];
-      
+
       logger.info(`🎯 Selected user ${currentIndex + 1}/${snapshotUserIds.length}: ${currentUserId} (${currentUserData.nickname})`);
 
       // Get media for the current user
@@ -567,10 +524,16 @@ exports.scheduledRandomUserMedia = onSchedule({
       }
 
       // Send media to Telegram
-      const caption = `🎉 ${currentUserData.nickname} is LIVE now! 💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
-      
       const sendPromises = CHAT_IDS.map(async (chatId) => {
-        const result = await sendMediaToTG(media.path, media.type, chatId, caption);
+        // Determine if this is a Chinese chat
+        const isChinese = chatId === "-1002560028339";
+        
+        // Generate caption based on the specific chat ID
+        const caption = isChinese ?
+          `🎉 ${currentUserData.nickname} 在线! 💋🔥  真人女孩  💃👀\n\n ${chinese_messages[Math.floor(Math.random() * chinese_messages.length)]} \n\n ${chinese_labels[Math.floor(Math.random() * chinese_labels.length)]}` :
+          `🎉 ${currentUserData.nickname} is LIVE now! 💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
+
+        const result = await sendMediaToTG(media.path, media.type, chatId, caption, isChinese);
         if (result.success) {
           logger.info(`✅ Successfully sent media for user ${currentUserId} to Telegram chat ${chatId}`);
           return { success: true, chatId };
@@ -583,7 +546,7 @@ exports.scheduledRandomUserMedia = onSchedule({
       const results = await Promise.all(sendPromises);
       const successCount = results.filter(r => r.success).length;
       const errorCount = results.filter(r => !r.success).length;
-      
+
       if (errorCount === 0) {
         logger.info(`✅ Successfully sent media for user ${currentUserId} to all ${successCount} Telegram chats`);
       } else {
@@ -593,14 +556,14 @@ exports.scheduledRandomUserMedia = onSchedule({
       // Move to next user (cycle back to 0 if at end)
       const nextIndex = (currentIndex + 1) % snapshotUserIds.length;
       await counterRef.set(nextIndex);
-      
+
       // If we've completed the cycle, create a new snapshot for next cycle
       if (nextIndex === 0) {
         logger.info("🔄 Completed cycle through all users in snapshot");
-        
+
         // Always create new snapshot after completing a cycle
         logger.info("📸 Creating new snapshot for next cycle");
-        
+
         // Create new snapshot with current host users
         const newSnapshot = {};
         hostUsers.forEach(([userId, userData]) => {
@@ -611,12 +574,12 @@ exports.scheduledRandomUserMedia = onSchedule({
             timestamp: getVancouverTime()
           };
         });
-        
+
         // Save new snapshot (counter will start at 0 on next run)
         await snapshotRef.set(newSnapshot);
         logger.info(`📸 New snapshot created with ${Object.keys(newSnapshot).length} users for next cycle`);
       }
-      
+
       logger.info(`🔄 Next user index: ${nextIndex}`);
 
     } finally {
@@ -643,7 +606,25 @@ exports.scheduledRandomUserMedia = onSchedule({
 
 exports.testSendAd = onRequest(async (req, res) => {
   try {
-    const caption = `❤️ 1on1 Video Chat 💋
+    const sendPromises = CHAT_IDS.map(async (chatId) => {
+      // Determine if this is a Chinese chat
+      const isChinese = chatId === "-1002560028339";
+      
+      // Generate caption based on language
+      const caption = isChinese ? 
+        `❤️ 1v1视频聊天 💋
+
+  ⏺️ 白人 黑人 亚洲女孩
+  ⏺️ 学生、会计师、教师、护士、兼职工作者
+  ⏺️ AI语音翻译
+
+💋 活生生的AI女友
+⏺️ 每个AI都基于你可以视频通话的真实主播
+
+🔥 主播的独家视频和照片
+
+你总能找到一个你喜欢的！` :
+        `❤️ 1on1 Video Chat 💋
 
   ⏺️ White Black Asian girls
   ⏺️ students, accountants, teachers, nurses, part-time worker 
@@ -655,9 +636,8 @@ exports.testSendAd = onRequest(async (req, res) => {
 🔥 Exclusive videos and photos of the hosts
 
 You'll always find one you like!`;
-    
-    const sendPromises = CHAT_IDS.map(async (chatId) => {
-      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption);
+
+      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption, isChinese);
       if (result.success) {
         logger.info(`✅ Successfully sent ad to Telegram chat ${chatId}`);
         return { success: true, chatId };
@@ -670,7 +650,7 @@ You'll always find one you like!`;
     const results = await Promise.all(sendPromises);
     const successCount = results.filter(r => r.success).length;
     const errorCount = results.filter(r => !r.success).length;
-    
+
     if (errorCount === 0) {
       logger.info("✅ Successfully sent ad to all Telegram chats");
       res.status(200).json({ success: true, message: `Ad sent successfully to ${successCount} chats` });
@@ -686,11 +666,29 @@ You'll always find one you like!`;
 
 //send ad to tg group
 exports.scheduledSendAd = onSchedule({
-  schedule: "every 13 minutes", 
+  schedule: "every 13 minutes",
   timeZone: "America/Vancouver"
 }, async (event) => {
   try {
-    const caption = `❤️ 1on1 Video Chat 💋
+    const sendPromises = CHAT_IDS.map(async (chatId) => {
+      // Determine if this is a Chinese chat
+      const isChinese = chatId === "-1002560028339";
+      
+      // Generate caption based on language
+      const caption = isChinese ? 
+        `❤️ 1v1视频聊天 💋
+
+  ⏺️ 白人 黑人 亚洲女孩
+  ⏺️ 学生、会计师、教师、护士、兼职工作者
+  ⏺️ AI语音翻译
+
+💋 活生生的AI女友
+⏺️ 每个AI都基于你可以视频通话的真实主播
+
+🔥 主播的独家视频和照片
+
+你总能找到一个你喜欢的！` :
+        `❤️ 1on1 Video Chat 💋
 
   ⏺️ White Black Asian girls
   ⏺️ students, accountants, teachers, nurses, part-time worker 
@@ -702,9 +700,8 @@ exports.scheduledSendAd = onSchedule({
 🔥 Exclusive videos and photos of the hosts
 
 You'll always find one you like!`;
-    
-    const sendPromises = CHAT_IDS.map(async (chatId) => {
-      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption);
+
+      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption, isChinese);
       if (result.success) {
         logger.info(`✅ Successfully sent ad to Telegram chat ${chatId}`);
         return { success: true, chatId };
@@ -717,7 +714,7 @@ You'll always find one you like!`;
     const results = await Promise.all(sendPromises);
     const successCount = results.filter(r => r.success).length;
     const errorCount = results.filter(r => !r.success).length;
-    
+
     if (errorCount === 0) {
       logger.info(`✅ Successfully sent ad to all ${successCount} Telegram chats`);
     } else {
@@ -744,11 +741,11 @@ You'll always find one you like!`;
 // 🔥 Exclusive videos and photos of the hosts
 
 // You'll always find one you like!`;
-    
+
 //     // Example URLs - replace with your actual photo and audio URLs
 //     const photoUrl = "https://pomchat.live/ad.jpg";
 //     const audioUrl = "https://example.com/audio.mp3"; // Replace with your audio URL
-    
+
 //     const sendPromises = CHAT_IDS.map(async (chatId) => {
 //       console.log("xxxxxxxxxxxxxxxxxxxxxxxchatId", chatId);
 //       const result = await sendAudioWithPhotoToTG(photoUrl, audioUrl, chatId, caption);
@@ -764,7 +761,7 @@ You'll always find one you like!`;
 //     const results = await Promise.all(sendPromises);
 //     const successCount = results.filter(r => r.success).length;
 //     const errorCount = results.filter(r => !r.success).length;
-    
+
 //     if (errorCount === 0) {
 //       logger.info("✅ Successfully sent audio with photo to all Telegram chats");
 //       res.status(200).json({ success: true, message: `Audio with photo sent successfully to ${successCount} chats` });
@@ -782,7 +779,7 @@ You'll always find one you like!`;
 exports.resetUserCounter = onRequest(async (req, res) => {
   try {
     const action = req.query.action || 'view';
-    
+
     if (action === 'reset') {
       // Reset counter to 0
       await db.ref('/scheduledUserCounter').set(0);
@@ -793,20 +790,20 @@ exports.resetUserCounter = onRequest(async (req, res) => {
       const statusRef = db.ref('/status');
       const statusSnapshot = await statusRef.once('value');
       const allUsers = statusSnapshot.val();
-      
+
       if (!allUsers) {
         res.status(200).json({ success: false, message: "No users found in status" });
         return;
       }
-      
+
       const userEntries = Object.entries(allUsers);
       const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
-      
+
       if (hostUsers.length === 0) {
         res.status(200).json({ success: false, message: "No host users found" });
         return;
       }
-      
+
       // Create new snapshot
       const newSnapshot = {};
       hostUsers.forEach(([userId, userData]) => {
@@ -817,16 +814,16 @@ exports.resetUserCounter = onRequest(async (req, res) => {
           timestamp: getVancouverTime()
         };
       });
-      
+
       // Save new snapshot and reset counter
       await Promise.all([
         db.ref('/scheduledUserSnapshot').set(newSnapshot),
         db.ref('/scheduledUserCounter').set(0)
       ]);
-      
+
       logger.info(`📸 New snapshot forced with ${Object.keys(newSnapshot).length} users`);
-      res.status(200).json({ 
-        success: true, 
+      res.status(200).json({
+        success: true,
         message: `New snapshot created with ${Object.keys(newSnapshot).length} users`,
         userCount: Object.keys(newSnapshot).length
       });
@@ -836,13 +833,13 @@ exports.resetUserCounter = onRequest(async (req, res) => {
         db.ref('/scheduledUserCounter').once('value'),
         db.ref('/scheduledUserSnapshot').once('value')
       ]);
-      
+
       const currentIndex = counterData.val() || 0;
       const currentSnapshot = snapshotData.val();
-      
+
       let totalHosts = 0;
       let snapshotInfo = null;
-      
+
       if (currentSnapshot) {
         totalHosts = Object.keys(currentSnapshot).length;
         snapshotInfo = {
@@ -851,21 +848,21 @@ exports.resetUserCounter = onRequest(async (req, res) => {
           users: Object.keys(currentSnapshot).slice(0, 5) // Show first 5 users
         };
       }
-      
+
       // Get current status for comparison
       const statusRef = db.ref('/status');
       const statusSnapshot = await statusRef.once('value');
       const allUsers = statusSnapshot.val();
-      
+
       let currentHosts = 0;
       if (allUsers) {
         const userEntries = Object.entries(allUsers);
         const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
         currentHosts = hostUsers.length;
       }
-      
-      res.status(200).json({ 
-        success: true, 
+
+      res.status(200).json({
+        success: true,
         currentIndex,
         snapshotHosts: totalHosts,
         currentHosts,
@@ -918,7 +915,7 @@ exports.testSnapshotCycling = onRequest(async (req, res) => {
     });
 
     const snapshotUserIds = Object.keys(testSnapshot);
-    
+
     res.status(200).json({
       success: true,
       message: `Snapshot created with ${snapshotUserIds.length} users`,

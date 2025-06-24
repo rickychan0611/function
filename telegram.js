@@ -53,29 +53,46 @@ const getMedia = async (id) => {
 };
 
 // Helper function to send media to Telegram group
-const sendMediaToTG = async (url, type, chat_id, caption) => {
+const sendMediaToTG = async (url, type, chat_id, caption, isChinese = false) => {
   try {
     const telegramURL = `https://api.telegram.org/bot${botToken}/${type === 1 ? "sendPhoto" : "sendVideo"}`;
+    
+    // Define buttons based on language
+    const buttons = isChinese ? [
+      [
+        {
+          text: "1v1视频聊天",
+          url: "https://t.me/pomchatpopbot/pomchat?chat_id=" + chat_id + "&isChinese=" + isChinese
+        }
+      ],
+      [
+        {
+          text: "立即开始！",
+          url: "https://t.me/pomchatpopbot/pomchat?chat_id=" + chat_id + "&isChinese=" + isChinese
+        }
+      ]
+    ] : [
+      [
+        {
+          text: "1on1 Video Chat",
+          url: "https://t.me/pomchatpopbot/pomchat?chat_id=" + chat_id + "&isChinese=" + isChinese
+        }
+      ],
+      [
+        {
+          text: "Start now!",
+          url: "https://t.me/pomchatpopbot/pomchat?chat_id=" + chat_id + "&isChinese=" + isChinese
+        }
+      ]
+    ];
+
     const response = await axios.post(telegramURL, {
       chat_id,
       [type === 1 ? "photo" : "video"]: url,
       caption,
       parse_mode: "HTML",
       reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: "1on1 Video Chat",
-              url: "https://t.me/pomchatpopbot/pomchat"
-            }
-          ],
-          [
-            {
-              text: "Start now!",
-              url: "https://t.me/pomchatpopbot/pomchat"
-            }
-          ]
-        ]
+        inline_keyboard: buttons
       }
     });
 
@@ -107,8 +124,37 @@ const sendTelegramMessage = async (messageText = "🔥 Hello group from Firebase
 };
 
 // Helper function to send audio with photo to Telegram group
-// const sendAudioWithPhotoToTG = async (photoUrl, audioUrl, chat_id, caption) => {
+// const sendAudioWithPhotoToTG = async (photoUrl, audioUrl, chat_id, caption, isChinese = false) => {
 //   try {
+//     // Define buttons based on language
+//     const buttons = isChinese ? [
+//       [
+//         {
+//           text: "1v1视频聊天",
+//           url: "https://t.me/pomchatpopbot/pomchat"
+//         }
+//       ],
+//       [
+//         {
+//           text: "立即开始！",
+//           url: "https://t.me/pomchatpopbot/pomchat"
+//         }
+//       ]
+//     ] : [
+//       [
+//         {
+//           text: "1on1 Video Chat",
+//           url: "https://t.me/pomchatpopbot/pomchat"
+//         }
+//       ],
+//       [
+//         {
+//           text: "Start now!",
+//           url: "https://t.me/pomchatpopbot/pomchat"
+//         }
+//       ]
+//     ];
+
 //     // First send the photo
 //     const photoURL = `https://api.telegram.org/bot${botToken}/sendPhoto`;
 //     const photoResponse = await axios.post(photoURL, {
@@ -117,20 +163,7 @@ const sendTelegramMessage = async (messageText = "🔥 Hello group from Firebase
 //       caption,
 //       parse_mode: "HTML",
 //       reply_markup: {
-//         inline_keyboard: [
-//           [
-//             {
-//               text: "1on1 Video Chat",
-//               url: "https://t.me/pomchatpopbot/pomchat"
-//             }
-//           ],
-//           [
-//             {
-//               text: "Start now!",
-//               url: "https://t.me/pomchatpopbot/pomchat"
-//             }
-//           ]
-//         ]
+//         inline_keyboard: buttons
 //       }
 //     });
 
