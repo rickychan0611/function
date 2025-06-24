@@ -407,7 +407,7 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
     }
 
     // Send media to Telegram
-    const caption = `🎉 ${selectedUser.userData.nickname} is LIVE now! 🔥\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
+    const caption = `🎉 ${selectedUser.userData.nickname} is LIVE now!  💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
     
     const sendPromises = CHAT_IDS.map(async (chatId) => {
       const result = await sendMediaToTG(selectedMedia.path, selectedMedia.type, chatId, caption);
@@ -567,7 +567,7 @@ exports.scheduledRandomUserMedia = onSchedule({
       }
 
       // Send media to Telegram
-      const caption = `🎉 ${currentUserData.nickname} is LIVE now! 🔥\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
+      const caption = `🎉 ${currentUserData.nickname} is LIVE now! 💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
       
       const sendPromises = CHAT_IDS.map(async (chatId) => {
         const result = await sendMediaToTG(media.path, media.type, chatId, caption);
