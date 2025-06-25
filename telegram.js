@@ -56,32 +56,34 @@ const getMedia = async (id) => {
 const sendMediaToTG = async (url, type, chat_id, caption, isChinese = false) => {
   try {
     const telegramURL = `https://api.telegram.org/bot${botToken}/${type === 1 ? "sendPhoto" : "sendVideo"}`;
-    
+
     // Define buttons based on language
+
+    const link = isChinese ? `https://t.me/pomchatvipbot/pomchat?startapp=isChinese` : `https://t.me/pomchatpopbot/pomchat`;
     const buttons = isChinese ? [
       [
         {
           text: "1v1视频聊天",
-          url: "https://t.me/pomchatpopbot/pomchat?chat_id=" + chat_id + "&isChinese=" + isChinese
+          url: link
         }
       ],
       [
         {
           text: "立即开始！",
-          url: "https://t.me/pomchatpopbot/pomchat?chat_id=" + chat_id + "&isChinese=" + isChinese
+          url: link
         }
       ]
     ] : [
       [
         {
           text: "1on1 Video Chat",
-          url: "https://t.me/pomchatpopbot/pomchat?chat_id=" + chat_id + "&isChinese=" + isChinese
+          url: link
         }
       ],
       [
         {
           text: "Start now!",
-          url: "https://t.me/pomchatpopbot/pomchat?chat_id=" + chat_id + "&isChinese=" + isChinese
+          url: link
         }
       ]
     ];
