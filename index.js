@@ -23,14 +23,20 @@ admin.initializeApp();
 
 // Telegram bot configuration
 const CHAT_IDS = [
-  "-1002673859693", // https://t.me/pomchatdev
-  "-1002412279665", // https://t.me/pomchatpop
-  "-1002642186417", // https://t.me/pomchatvip
-  "-1002603412953", // https://t.me/pomchatlive
-  "-1002560028339", // https://t.me/pomchat //Pomchatvvip 全球果聊
-  "-1002559668222", // https://t.me/pombabe
-  "-1002307647703", // https://t.me/pomchat06
+  "-1002673859693", // https://t.me/pomchatdev //pomchatdev
+  "-1002412279665", // https://t.me/pomchatpop //🔞Pomchatpop🔞 //https://t.me/pomchatpopbot/pomchat
+  "-1002642186417", // https://t.me/pomchatvip //Pomchatvip01
+  "-1002603412953", // https://t.me/pomchatlive //pomchatlive //https://t.me/pomchatlivebot/pomchat
+  "-1002560028339", // https://t.me/pomchat //Pomchatvvip 全球果聊 //https://t.me/pomchatvipbot/pomchat?startapp=isChinese
+  "-1002559668222", // https://t.me/pombabe //🔞pomchat🔞
+  "-1002307647703", // https://t.me/pomchat06 //pomchat06 //https://t.me/pomchat06bot/app
+  "-1002814655337", //https://t.me/pomchatvvip  //PomChat 全球美女果聊中文群 //https://t.me/pomchatvipbot/pomchat?startapp=isChinese
 ];
+
+// Helper function to determine if a chat ID is Chinese
+const isChineseChat = (chatId) => {
+  return chatId === "-1002560028339" || chatId === "-1002814655337";
+};
 
 const db = admin.database();
 
@@ -369,12 +375,11 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
     }
 
     // Send media to specific chat
-    const isChinese = chatId === "-1002560028339";
-    const caption = isChinese ?
+    const caption = isChineseChat(chatId) ?
       `🎉 ${selectedUser.userData.nickname} 在线! 💋🔥  真人女孩  💃👀\n\n ${chinese_messages[Math.floor(Math.random() * chinese_messages.length)]} \n\n ${chinese_labels[Math.floor(Math.random() * chinese_labels.length)]}` :
       `🎉 ${selectedUser.userData.nickname} is LIVE now!  💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
 
-    const result = await sendMediaToTG(selectedMedia.path, selectedMedia.type, chatId, caption, isChinese);
+    const result = await sendMediaToTG(selectedMedia.path, selectedMedia.type, chatId, caption, isChineseChat(chatId));
     if (result.success) {
       logger.info(`✅ Successfully sent media for user ${selectedUser.userId} to Telegram chat ${chatId}`);
       res.status(200).json({
@@ -410,7 +415,7 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
 
 // Cloud Scheduler function that runs every 1 minute
 exports.scheduledRandomUserMedia = onSchedule({
-  schedule: "every 5 minutes",
+  schedule: "every 15 minutes",
   timeZone: "America/Vancouver"
 }, async (event) => {
   try {
@@ -526,14 +531,13 @@ exports.scheduledRandomUserMedia = onSchedule({
       // Send media to Telegram
       const sendPromises = CHAT_IDS.map(async (chatId) => {
         // Determine if this is a Chinese chat
-        const isChinese = chatId === "-1002560028339";
         
         // Generate caption based on the specific chat ID
-        const caption = isChinese ?
+        const caption = isChineseChat(chatId) ?
           `🎉 ${currentUserData.nickname} 在线! 💋🔥  真人女孩  💃👀\n\n ${chinese_messages[Math.floor(Math.random() * chinese_messages.length)]} \n\n ${chinese_labels[Math.floor(Math.random() * chinese_labels.length)]}` :
           `🎉 ${currentUserData.nickname} is LIVE now! 💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
 
-        const result = await sendMediaToTG(media.path, media.type, chatId, caption, isChinese);
+        const result = await sendMediaToTG(media.path, media.type, chatId, caption, isChineseChat(chatId));
         if (result.success) {
           logger.info(`✅ Successfully sent media for user ${currentUserId} to Telegram chat ${chatId}`);
           return { success: true, chatId };
@@ -607,11 +611,9 @@ exports.scheduledRandomUserMedia = onSchedule({
 exports.testSendAd = onRequest(async (req, res) => {
   try {
     const sendPromises = CHAT_IDS.map(async (chatId) => {
-      // Determine if this is a Chinese chat
-      const isChinese = chatId === "-1002560028339";
       
       // Generate caption based on language
-      const caption = isChinese ? 
+      const caption = isChineseChat(chatId) ? 
         `❤️ 1v1视频聊天 💋
 
   ⏺️ 白人 黑人 亚洲女孩
@@ -637,7 +639,7 @@ exports.testSendAd = onRequest(async (req, res) => {
 
 You'll always find one you like!`;
 
-      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption, isChinese);
+      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption, isChineseChat(chatId));
       if (result.success) {
         logger.info(`✅ Successfully sent ad to Telegram chat ${chatId}`);
         return { success: true, chatId };
@@ -672,10 +674,9 @@ exports.scheduledSendAd = onSchedule({
   try {
     const sendPromises = CHAT_IDS.map(async (chatId) => {
       // Determine if this is a Chinese chat
-      const isChinese = chatId === "-1002560028339";
-      
+     
       // Generate caption based on language
-      const caption = isChinese ? 
+      const caption = isChineseChat(chatId) ? 
         `❤️ 1v1视频聊天 💋
 
   ⏺️ 白人 黑人 亚洲女孩
@@ -701,7 +702,7 @@ exports.scheduledSendAd = onSchedule({
 
 You'll always find one you like!`;
 
-      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption, isChinese);
+      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption, isChineseChat(chatId));
       if (result.success) {
         logger.info(`✅ Successfully sent ad to Telegram chat ${chatId}`);
         return { success: true, chatId };
