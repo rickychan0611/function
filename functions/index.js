@@ -668,7 +668,7 @@ You'll always find one you like!`;
 
 //send ad to tg group
 exports.scheduledSendAd = onSchedule({
-  schedule: "every 13 minutes",
+  schedule: "every 1 hour",
   timeZone: "America/Vancouver"
 }, async (event) => {
   try {
