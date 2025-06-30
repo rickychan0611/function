@@ -18,17 +18,24 @@ const getMedia = async (id) => {
         "Content-Type": "application/json"
       }
     });
+    const token = gettoken.data.data.access_token;
+
+    const getinfoUrl = "https://avatarlive.ai/api/getBroadcasterPublicInfo?broadcaster_account_id=" + id;
+    const getinfoUrlRes = await axios.get(getinfoUrl, {
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      }
+    });
+    const nickname = getinfoUrlRes.data.data.nickname;
 
     const url = `https://avatarlive.ai/api/post/getBroadcasterPosts?page=1&limit=200&type=2&account_id=${id}`;
-
-    const token = gettoken.data.data.access_token;
     const result = await axios.get(url, {
       headers: {
         "Authorization": "Bearer " + token,
         "Content-Type": "application/json"
       }
     });
-
     const posts = result.data.data.posts_list;
     if (!posts || posts.length === 0) {
       logger.info(`No posts found for userId: ${id}`);
@@ -45,7 +52,7 @@ const getMedia = async (id) => {
     const selectedPost = filteredPosts[index];
     logger.info(`Selected post for user ${id}:`, selectedPost);
 
-    return selectedPost;
+    return { ...selectedPost, nickname };
   } catch (error) {
     logger.error("Error fetching media URL:", error.response?.data || error.message);
     return null;

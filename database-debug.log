@@ -8,3 +8,14 @@ WARNING: All illegal access operations will be denied in a future release
 21:26:15.363 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO com.firebase.core.namespace.NamespaceActor - fake-server successfully activated FBKV (SurveyIdle(0)) wait: 189ms, init: 0ms
 21:26:15.445 [NamespaceSystem-blocking-namespace-operation-dispatcher-7] INFO com.firebase.core.namespace.StateManager - Namespace fake-server status Active to Active
 21:26:15.481 [NamespaceSystem-blocking-namespace-operation-dispatcher-7] INFO com.firebase.core.namespace.StateManager - Namespace fake-server status Active to Active
+10:13:22.704 [FirebaseWorkerPool-1-4] WARN com.firebase.core.persistence.backend.dummy.EmulatorMetadataPersistence - Multiple projectIds are not recommended in single project mode. Requested 
+namespace popchatv002, but the emulator is configured for fake-server. To 
+opt-out of single project mode add/set the singleProjectMode: false property in 
+the firebase.json emulators config. 
+10:13:22.746 [NamespaceSystem-akka.actor.default-dispatcher-11] INFO com.firebase.core.namespace.NamespaceActor - popchatv002 successfully activated FBKV (SurveyIdle(0)) wait: 18ms, init: 0ms
+10:13:52.820 [FirebaseWorkerPool-1-4] WARN com.firebase.core.persistence.backend.dummy.EmulatorMetadataPersistence - Multiple projectIds are not recommended in single project mode. Requested 
+namespace popchatv002-default-rtdb, but the emulator is configured for popchatv002,fake-server. To 
+opt-out of single project mode add/set the singleProjectMode: false property in 
+the firebase.json emulators config. 
+10:13:52.824 [NamespaceSystem-akka.actor.default-dispatcher-10] INFO com.firebase.core.namespace.NamespaceActor - popchatv002-default-rtdb successfully activated FBKV (SurveyIdle(0)) wait: 1ms, init: 0ms
+10:13:52.929 [NamespaceSystem-blocking-namespace-operation-dispatcher-19] INFO com.firebase.core.stats.EventAuditLog - {"eventId":"MK2SL9xCYxus/e0ludJ0qBEajTA=","namespace":"popchatv002-default-rtdb","projectNumber":"123456789","eventType":"google.firebase.database.ref.v1.created","flowName":"projects/popchatv002/topics/us-central1-trackUserSessionCreate-0","resource":"projects/_/instances/popchatv002-default-rtdb/refs/status/38585d63-e6f8-45ad-923f-9fc8feaa7f87","evaluationTimestamp":"2025-06-30T17:13:52.867Z","stage":"TRIGGERED"}

@@ -301,74 +301,73 @@ exports.telegramWebhook = onRequest((req, res) => {
 // Test function to manually trigger the scheduled logic
 exports.testScheduledFunction = onRequest(async (req, res) => {
   try {
-    logger.info("🧪 Test function triggered - getting random user");
+    logger.info("🧪 Test function triggered - getting random host ID");
 
     // Get chatId from query parameter, default to first chat in CHAT_IDS
     const chatId = req.query.chatId || CHAT_IDS[0].chatId;
     logger.info(`📱 Target chat ID: ${chatId}`);
 
-    // Get all users from status
-    const statusRef = db.ref('/status');
-    const statusSnapshot = await statusRef.once('value');
-    const allUsers = statusSnapshot.val();
+    // Get host IDs from database
+    const hostIdsRef = db.ref('/host_ids');
+    const hostIdsSnapshot = await hostIdsRef.once('value');
+    const hostIdsData = hostIdsSnapshot.val();
 
-    if (!allUsers) {
-      logger.info("❌ No users found in status");
-      res.status(200).json({ success: false, message: "No users found" });
+    if (!hostIdsData) {
+      logger.info("❌ No host IDs found in database");
+      res.status(200).json({ success: false, message: "No host IDs found in database" });
       return;
     }
 
-    // Convert to array and filter for hosts (status "b")
-    const userEntries = Object.entries(allUsers);
-    const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
-
-    if (hostUsers.length === 0) {
-      logger.info("❌ No host users found");
-      res.status(200).json({ success: false, message: "No host users found" });
+    // Convert host IDs object to array
+    const hostIds = Object.keys(hostIdsData);
+    
+    if (hostIds.length === 0) {
+      logger.info("❌ No host IDs found in database");
+      res.status(200).json({ success: false, message: "No host IDs found in database" });
       return;
     }
 
-    // Try up to 5 users to find one with media
-    const maxAttempts = Math.min(5, hostUsers.length);
-    let selectedUser = null;
+    // Try up to 5 host IDs to find one with media
+    const maxAttempts = Math.min(5, hostIds.length);
+    let selectedHostId = null;
     let selectedMedia = null;
     let attempts = 0;
-    let triedUsers = new Set(); // Track tried users
+    let triedHostIds = new Set(); // Track tried host IDs
 
     for (let i = 0; i < maxAttempts; i++) {
-      // Filter out already tried users
-      const availableUsers = hostUsers.filter(([userId]) => !triedUsers.has(userId));
+      // Filter out already tried host IDs
+      const availableHostIds = hostIds.filter(hostId => !triedHostIds.has(hostId));
 
-      if (availableUsers.length === 0) {
-        logger.info("❌ No more users to try");
+      if (availableHostIds.length === 0) {
+        logger.info("❌ No more host IDs to try");
         break;
       }
 
-      // Select random user from remaining users
-      const randomIndex = Math.floor(Math.random() * availableUsers.length);
-      const [randomUserId, randomUserData] = availableUsers[randomIndex];
+      // Select random host ID from remaining host IDs
+      const randomIndex = Math.floor(Math.random() * availableHostIds.length);
+      const randomHostId = availableHostIds[randomIndex];
 
       attempts++;
-      logger.info(`🎲 Attempt ${attempts}: Trying user ${randomUserId} (${randomUserData.nickname})`);
+      logger.info(`🎲 Attempt ${attempts}: Trying host ID ${randomHostId}`);
 
-      // Get media for the random user
-      const media = await getMedia(randomUserId);
+      // Get media for the random host ID
+      const media = await getMedia(randomHostId);
       if (media) {
-        selectedUser = { userId: randomUserId, userData: randomUserData };
+        selectedHostId = randomHostId;
         selectedMedia = media;
-        logger.info(`✅ Found media for user ${randomUserId} on attempt ${attempts}`);
+        logger.info(`✅ Found media for host ID ${randomHostId} on attempt ${attempts}`);
         break;
       } else {
-        logger.info(`❌ No media found for user ${randomUserId}, trying next user...`);
-        triedUsers.add(randomUserId); // Mark as tried
+        logger.info(`❌ No media found for host ID ${randomHostId}, trying next host ID...`);
+        triedHostIds.add(randomHostId); // Mark as tried
       }
     }
 
-    if (!selectedUser || !selectedMedia) {
-      logger.info(`❌ No media found after trying ${attempts} users`);
+    if (!selectedHostId || !selectedMedia) {
+      logger.info(`❌ No media found after trying ${attempts} host IDs`);
       res.status(200).json({
         success: false,
-        message: `No media found after trying ${attempts} users`,
+        message: `No media found after trying ${attempts} host IDs`,
         attempts: attempts
       });
       return;
@@ -376,29 +375,25 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
 
     // Send media to specific chat
     const caption = CHAT_IDS.find(c => c.chatId === chatId)?.isChinese ?
-      `🎉 ${selectedUser.userData.nickname} 在线! 💋🔥  真人女孩  💃👀\n\n ${chinese_messages[Math.floor(Math.random() * chinese_messages.length)]} \n\n ${chinese_labels[Math.floor(Math.random() * chinese_labels.length)]}` :
-      `🎉 ${selectedUser.userData.nickname} is LIVE now!  💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
+      `🎉 ${selectedMedia.nickname || 'Host'} 在线! 💋🔥  真人女孩  💃👀\n\n ${chinese_messages[Math.floor(Math.random() * chinese_messages.length)]} \n\n ${chinese_labels[Math.floor(Math.random() * chinese_labels.length)]}` :
+      `🎉 ${selectedMedia.nickname || 'Host'} is LIVE now!  💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
 
     const result = await sendMediaToTG(selectedMedia.path, selectedMedia.type, chatId, caption, CHAT_IDS.find(c => c.chatId === chatId)?.isChinese, CHAT_IDS.find(c => c.chatId === chatId)?.inviteCode);
     if (result.success) {
-      logger.info(`✅ Successfully sent media for user ${selectedUser.userId} to Telegram chat ${chatId}`);
+      logger.info(`✅ Successfully sent media for host ID ${selectedHostId} to Telegram chat ${chatId}`);
       res.status(200).json({
         success: true,
         message: "Media sent successfully",
         attempts: attempts,
         targetChatId: chatId,
-        user: {
-          id: selectedUser.userId,
-          nickname: selectedUser.userData.nickname,
-          userId: selectedUser.userId
-        },
+        hostId: selectedHostId,
         media: {
           path: selectedMedia.path,
           type: selectedMedia.type
         }
       });
     } else {
-      logger.error(`❌ Failed to send media for user ${selectedUser.userId} to chat ${chatId}:`, result.error);
+      logger.error(`❌ Failed to send media for host ID ${selectedHostId} to chat ${chatId}:`, result.error);
       res.status(500).json({
         success: false,
         message: "Failed to send media",
@@ -415,11 +410,11 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
 
 // Cloud Scheduler function that runs every 1 minute
 exports.scheduledRandomUserMedia = onSchedule({
-  schedule: "every 15 minutes",
+  schedule: "every 7 minutes",
   timeZone: "America/Vancouver"
 }, async (event) => {
   try {
-    logger.info("🕐 Scheduled function triggered - cycling through users");
+    logger.info("🕐 Scheduled function triggered - cycling through host IDs");
 
     // Check if function is already running (simple lock)
     const lockRef = db.ref('/scheduledFunctionLock');
@@ -438,111 +433,63 @@ exports.scheduledRandomUserMedia = onSchedule({
     });
 
     try {
-      // Get current snapshot of users
-      const statusRef = db.ref('/status');
-      const statusSnapshot = await statusRef.once('value');
-      const allUsers = statusSnapshot.val();
+      // Get host IDs from database
+      const hostIdsRef = db.ref('/host_ids');
+      const hostIdsSnapshot = await hostIdsRef.once('value');
+      const hostIdsData = hostIdsSnapshot.val();
 
-      if (!allUsers) {
-        logger.info("❌ No users found in status");
+      if (!hostIdsData) {
+        logger.info("❌ No host IDs found in database");
         return;
       }
 
-      // Convert to array and filter for hosts (status "b")
-      const userEntries = Object.entries(allUsers);
-      const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
-
-      if (hostUsers.length === 0) {
-        logger.info("❌ No host users found");
+      // Convert host IDs object to array
+      const hostIds = Object.keys(hostIdsData);
+      
+      if (hostIds.length === 0) {
+        logger.info("❌ No host IDs found in database");
         return;
       }
 
-      // Get current snapshot and counter from database
-      const snapshotRef = db.ref('/scheduledUserSnapshot');
-      const counterRef = db.ref('/scheduledUserCounter');
-
-      const [snapshotData, counterData] = await Promise.all([
-        snapshotRef.once('value'),
-        counterRef.once('value')
-      ]);
-
-      let currentSnapshot = snapshotData.val();
+      // Get current index from database
+      const counterRef = db.ref('/scheduledHostIdCounter');
+      const counterData = await counterRef.once('value');
       let currentIndex = counterData.val() || 0;
 
-      // Check if we need a new snapshot (only if no snapshot exists)
-      const currentSnapshotIds = currentSnapshot ? Object.keys(currentSnapshot) : [];
-      const currentHostIds = hostUsers.map(([userId]) => userId);
-
-      const needsNewSnapshot = !currentSnapshot;
-
-      if (needsNewSnapshot) {
-        logger.info("📸 Taking new snapshot of host users");
-
-        // Create new snapshot with user IDs and data
-        const newSnapshot = {};
-        hostUsers.forEach(([userId, userData]) => {
-          newSnapshot[userId] = {
-            nickname: userData.nickname,
-            status: userData.status,
-            platform: userData.platform,
-            timestamp: getVancouverTime()
-          };
-        });
-
-        // Save new snapshot and reset counter
-        await Promise.all([
-          snapshotRef.set(newSnapshot),
-          counterRef.set(0)
-        ]);
-
-        currentSnapshot = newSnapshot;
-        currentIndex = 0;
-
-        logger.info(`📸 New snapshot created with ${Object.keys(newSnapshot).length} users`);
-      }
-
-      // Get current user from snapshot
-      const snapshotUserIds = Object.keys(currentSnapshot);
-      if (snapshotUserIds.length === 0) {
-        logger.info("❌ No users in snapshot");
-        return;
-      }
-
       // Ensure index is within bounds
-      if (currentIndex >= snapshotUserIds.length) {
-        currentIndex = 0; // Reset to first user
+      if (currentIndex >= hostIds.length) {
+        currentIndex = 0; // Reset to first host ID
       }
 
-      // Get the current user
-      const currentUserId = snapshotUserIds[currentIndex];
-      const currentUserData = currentSnapshot[currentUserId];
+      // Get the current host ID
+      const currentHostId = hostIds[currentIndex];
 
-      logger.info(`🎯 Selected user ${currentIndex + 1}/${snapshotUserIds.length}: ${currentUserId} (${currentUserData.nickname})`);
+      logger.info(`🎯 Selected host ID ${currentIndex + 1}/${hostIds.length}: ${currentHostId}`);
 
-      // Get media for the current user
-      const media = await getMedia(currentUserId);
+      // Get media for the current host ID
+      const media = await getMedia(currentHostId);
       if (!media) {
-        logger.info(`❌ No media found for user ${currentUserId}`);
-        // Move to next user even if no media
-        await counterRef.set((currentIndex + 1) % snapshotUserIds.length);
+        logger.info(`❌ No media found for host ID ${currentHostId}`);
+        // Move to next host ID even if no media
+        const nextIndex = (currentIndex + 1) % hostIds.length;
+        await counterRef.set(nextIndex);
+        logger.info(`🔄 Moving to next host ID index: ${nextIndex}`);
         return;
       }
 
       // Send media to Telegram
       const sendPromises = CHAT_IDS.map(async (chat) => {
-        // Determine if this is a Chinese chat
-
         // Generate caption based on the specific chat ID
         const caption = chat.isChinese ?
-          `🎉 ${currentUserData.nickname} 在线! 💋🔥  真人女孩  💃👀\n\n ${chinese_messages[Math.floor(Math.random() * chinese_messages.length)]} \n\n ${chinese_labels[Math.floor(Math.random() * chinese_labels.length)]}` :
-          `🎉 ${currentUserData.nickname} is LIVE now! 💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
+          `🎉 ${media.nickname || 'Host'} 在线! 💋🔥  真人女孩  💃👀\n\n ${chinese_messages[Math.floor(Math.random() * chinese_messages.length)]} \n\n ${chinese_labels[Math.floor(Math.random() * chinese_labels.length)]}` :
+          `🎉 ${media.nickname || 'Host'} is LIVE now! 💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
 
         const result = await sendMediaToTG(media.path, media.type, chat.chatId, caption, chat.isChinese, chat.inviteCode);
         if (result.success) {
-          logger.info(`✅ Successfully sent media for user ${currentUserId} to Telegram chat ${chat.chatId}`);
+          logger.info(`✅ Successfully sent media for host ID ${currentHostId} to Telegram chat ${chat.chatId}`);
           return { success: true, chatId: chat.chatId };
         } else {
-          logger.error(`❌ Failed to send media for user ${currentUserId} to chat ${chat.chatId}:`, result.error);
+          logger.error(`❌ Failed to send media for host ID ${currentHostId} to chat ${chat.chatId}:`, result.error);
           return { success: false, chatId: chat.chatId, error: result.error };
         }
       });
@@ -552,39 +499,16 @@ exports.scheduledRandomUserMedia = onSchedule({
       const errorCount = results.filter(r => !r.success).length;
 
       if (errorCount === 0) {
-        logger.info(`✅ Successfully sent media for user ${currentUserId} to all ${successCount} Telegram chats`);
+        logger.info(`✅ Successfully sent media for host ID ${currentHostId} to all ${successCount} Telegram chats`);
       } else {
-        logger.error(`❌ Failed to send media for user ${currentUserId} to ${errorCount} chats, succeeded: ${successCount}`);
+        logger.error(`❌ Failed to send media for host ID ${currentHostId} to ${errorCount} chats, succeeded: ${successCount}`);
       }
 
-      // Move to next user (cycle back to 0 if at end)
-      const nextIndex = (currentIndex + 1) % snapshotUserIds.length;
+      // Move to next host ID (cycle back to 0 if at end)
+      const nextIndex = (currentIndex + 1) % hostIds.length;
       await counterRef.set(nextIndex);
 
-      // If we've completed the cycle, create a new snapshot for next cycle
-      if (nextIndex === 0) {
-        logger.info("🔄 Completed cycle through all users in snapshot");
-
-        // Always create new snapshot after completing a cycle
-        logger.info("📸 Creating new snapshot for next cycle");
-
-        // Create new snapshot with current host users
-        const newSnapshot = {};
-        hostUsers.forEach(([userId, userData]) => {
-          newSnapshot[userId] = {
-            nickname: userData.nickname,
-            status: userData.status,
-            platform: userData.platform,
-            timestamp: getVancouverTime()
-          };
-        });
-
-        // Save new snapshot (counter will start at 0 on next run)
-        await snapshotRef.set(newSnapshot);
-        logger.info(`📸 New snapshot created with ${Object.keys(newSnapshot).length} users for next cycle`);
-      }
-
-      logger.info(`🔄 Next user index: ${nextIndex}`);
+      logger.info(`🔄 Next host ID index: ${nextIndex} (${hostIds[nextIndex]})`);
 
     } finally {
       // Release lock
@@ -668,7 +592,7 @@ You'll always find one you like!`;
 
 //send ad to tg group
 exports.scheduledSendAd = onSchedule({
-  schedule: "every 60 minutes",
+  schedule: "every 30 minutes",
   timeZone: "America/Vancouver"
 }, async (event) => {
   try {
@@ -727,210 +651,98 @@ You'll always find one you like!`;
   }
 });
 
-// Test function to send audio with photo
-// exports.testSendAudioWithPhoto = onRequest(async (req, res) => {
-//   try {
-//     const caption = `❤️ 1on1 Video Chat 💋
-
-//   ⏺️ White Black Asian girls
-//   ⏺️ students, accountants, teachers, nurses, part-time worker 
-//   ⏺️ AI voice translator
-
-// 💋 Alive AI Girlfriend
-// ⏺️ Every AI is based on a real hostess you can Video Call
-
-// 🔥 Exclusive videos and photos of the hosts
-
-// You'll always find one you like!`;
-
-//     // Example URLs - replace with your actual photo and audio URLs
-//     const photoUrl = "https://pomchat.live/ad.jpg";
-//     const audioUrl = "https://example.com/audio.mp3"; // Replace with your audio URL
-
-//     const sendPromises = CHAT_IDS.map(async (chatId) => {
-//       console.log("xxxxxxxxxxxxxxxxxxxxxxxchatId", chatId);
-//       const result = await sendAudioWithPhotoToTG(photoUrl, audioUrl, chatId, caption);
-//       if (result.success) {
-//         logger.info(`✅ Successfully sent audio with photo to Telegram chat ${chatId}`);
-//         return { success: true, chatId };
-//       } else {
-//         logger.error(`❌ Failed to send audio with photo to chat ${chatId}:`, result.error);
-//         return { success: false, chatId, error: result.error };
-//       }
-//     });
-
-//     const results = await Promise.all(sendPromises);
-//     const successCount = results.filter(r => r.success).length;
-//     const errorCount = results.filter(r => !r.success).length;
-
-//     if (errorCount === 0) {
-//       logger.info("✅ Successfully sent audio with photo to all Telegram chats");
-//       res.status(200).json({ success: true, message: `Audio with photo sent successfully to ${successCount} chats` });
-//     } else {
-//       logger.error(`❌ Failed to send audio with photo to ${errorCount} chats`);
-//       res.status(500).json({ success: false, message: `Failed to send audio with photo to ${errorCount} chats`, successCount, errorCount });
-//     }
-//   } catch (error) {
-//     logger.error("❌ Error in testSendAudioWithPhoto:", error);
-//     res.status(500).json({ success: false, message: "Error occurred", error: error.message });
-//   }
-// });
-
-// Function to reset the user counter and view current status
-exports.resetUserCounter = onRequest(async (req, res) => {
-  try {
-    const action = req.query.action || 'view';
-
-    if (action === 'reset') {
-      // Reset counter to 0
-      await db.ref('/scheduledUserCounter').set(0);
-      logger.info("🔄 User counter reset to 0");
-      res.status(200).json({ success: true, message: "User counter reset to 0" });
-    } else if (action === 'new-snapshot') {
-      // Force a new snapshot
-      const statusRef = db.ref('/status');
-      const statusSnapshot = await statusRef.once('value');
-      const allUsers = statusSnapshot.val();
-
-      if (!allUsers) {
-        res.status(200).json({ success: false, message: "No users found in status" });
-        return;
-      }
-
-      const userEntries = Object.entries(allUsers);
-      const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
-
-      if (hostUsers.length === 0) {
-        res.status(200).json({ success: false, message: "No host users found" });
-        return;
-      }
-
-      // Create new snapshot
-      const newSnapshot = {};
-      hostUsers.forEach(([userId, userData]) => {
-        newSnapshot[userId] = {
-          nickname: userData.nickname,
-          status: userData.status,
-          platform: userData.platform,
-          timestamp: getVancouverTime()
-        };
-      });
-
-      // Save new snapshot and reset counter
-      await Promise.all([
-        db.ref('/scheduledUserSnapshot').set(newSnapshot),
-        db.ref('/scheduledUserCounter').set(0)
-      ]);
-
-      logger.info(`📸 New snapshot forced with ${Object.keys(newSnapshot).length} users`);
-      res.status(200).json({
-        success: true,
-        message: `New snapshot created with ${Object.keys(newSnapshot).length} users`,
-        userCount: Object.keys(newSnapshot).length
-      });
-    } else {
-      // View current status
-      const [counterData, snapshotData] = await Promise.all([
-        db.ref('/scheduledUserCounter').once('value'),
-        db.ref('/scheduledUserSnapshot').once('value')
-      ]);
-
-      const currentIndex = counterData.val() || 0;
-      const currentSnapshot = snapshotData.val();
-
-      let totalHosts = 0;
-      let snapshotInfo = null;
-
-      if (currentSnapshot) {
-        totalHosts = Object.keys(currentSnapshot).length;
-        snapshotInfo = {
-          userCount: totalHosts,
-          timestamp: Object.values(currentSnapshot)[0]?.timestamp || 'Unknown',
-          users: Object.keys(currentSnapshot).slice(0, 5) // Show first 5 users
-        };
-      }
-
-      // Get current status for comparison
-      const statusRef = db.ref('/status');
-      const statusSnapshot = await statusRef.once('value');
-      const allUsers = statusSnapshot.val();
-
-      let currentHosts = 0;
-      if (allUsers) {
-        const userEntries = Object.entries(allUsers);
-        const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
-        currentHosts = hostUsers.length;
-      }
-
-      res.status(200).json({
-        success: true,
-        currentIndex,
-        snapshotHosts: totalHosts,
-        currentHosts,
-        needsNewSnapshot: totalHosts !== currentHosts,
-        snapshotInfo,
-        message: `Current index: ${currentIndex}, Snapshot hosts: ${totalHosts}, Current hosts: ${currentHosts}`
-      });
-    }
-  } catch (error) {
-    logger.error("❌ Error in resetUserCounter:", error);
-    res.status(500).json({ success: false, message: "Error occurred", error: error.message });
-  }
-});
-
-// Test function to demonstrate snapshot-based user cycling
-exports.testSnapshotCycling = onRequest(async (req, res) => {
-  try {
-    logger.info("🧪 Test snapshot cycling function triggered");
-
-    // Get current snapshot of users
-    const statusRef = db.ref('/status');
-    const statusSnapshot = await statusRef.once('value');
-    const allUsers = statusSnapshot.val();
-
-    if (!allUsers) {
-      logger.info("❌ No users found in status");
-      res.status(200).json({ success: false, message: "No users found" });
-      return;
-    }
-
-    // Convert to array and filter for hosts (status "b")
-    const userEntries = Object.entries(allUsers);
-    const hostUsers = userEntries.filter(([userId, userData]) => userData && userData.status === "b");
-
-    if (hostUsers.length === 0) {
-      logger.info("❌ No host users found");
-      res.status(200).json({ success: false, message: "No host users found" });
-      return;
-    }
-
-    // Create snapshot for testing
-    const testSnapshot = {};
-    hostUsers.forEach(([userId, userData]) => {
-      testSnapshot[userId] = {
-        nickname: userData.nickname,
-        status: userData.status,
-        platform: userData.platform,
-        timestamp: getVancouverTime()
-      };
-    });
-
-    const snapshotUserIds = Object.keys(testSnapshot);
-
-    res.status(200).json({
-      success: true,
-      message: `Snapshot created with ${snapshotUserIds.length} users`,
-      userCount: snapshotUserIds.length,
-      users: snapshotUserIds.slice(0, 10), // Show first 10 users
-      sampleUser: testSnapshot[snapshotUserIds[0]] || null
-    });
-
-  } catch (error) {
-    logger.error("❌ Error in testSnapshotCycling:", error);
-    res.status(500).json({ success: false, message: "Error occurred", error: error.message });
-  }
-});
-
 // Export Telegram functions
 // exports.telegramWebhook = onRequest(telegramWebhook);  //to find out chat id, use ngork for local
 exports.sendHostToGroup = onRequest(sendHostToGroup);
+
+// Function to add host IDs to database
+exports.addHostIds = onRequest(async (req, res) => {
+  try {
+    const hostIds = [
+      "856a0c11-964f-4520-a4a9-827a9193909e",
+      "684e716e-14e2-412d-8054-f3ac70808751",
+      "125b4332-89df-4738-8751-9dc922972853",
+      "6de45798-154a-4611-bb1c-298fb1385103",
+      "e1d988eb-eb64-4d52-9b63-ea930166e1dc",
+      "1a418d10-e0f0-46f8-9e06-e9ec9c8c9933",
+      "0eb9d582-4179-44db-b225-0403de273ecb",
+      "290aaafd-bdca-4a5d-b793-2671d9e5cdb3",
+      "ed4c1e3b-eed3-4a1b-9170-2b8b781ee7c6",
+      "e39a117c-bc31-4082-b82d-cd4d067e2d39",
+      "0a200a2e-2e72-4a59-94a8-fc070e9d8f6d",
+      "075d0069-9abe-448a-b768-3373d12f3a3c",
+      "fb8ae6c0-9122-4ead-9f8b-f30c11d2de1a",
+      "a1e9c1e0-1156-41a8-a5e0-38ab128d1bdb",
+      "5abe8812-ea3a-47ca-a6a9-826b27aca8e7",
+      "39ce0381-6d5b-4789-acb2-74d621b6030e",
+      "e8b25253-8f1a-4a53-8b0d-d8aec98b2f02",
+      "a505d778-8b80-4348-ab20-f19e5c3ae1e9",
+      "18dfeafa-1b6e-4067-b976-ba4894e2d0a7",
+      "94029526-49d5-41f2-8fee-9e42f35c2e37",
+      "a578791b-0e4d-49ab-8395-4411a3809e21",
+      "1a941c4e-fd2b-4305-a857-e66f5c2cc9fe",
+      "5ef4a120-6bf5-486a-b361-1a860754fd16",
+      "b7dfe9c2-70ec-4722-adff-6f5477cb5fe1",
+      "50caeb4e-2b6d-462c-b2bb-a62d64714876",
+      "50caeb4e-2b6d-462c-b2bb-a62d64714876",
+      "f00f5091-6dca-4968-9ee4-afcd92a3e4a5",
+      "f00f5091-6dca-4968-9ee4-afcd92a3e4a5",
+      "c2d192ad-6088-41d9-827b-7a2ca37a9ecc",
+      "971ec58c-4dad-43ac-a29b-2c35e2ceedd9",
+      "c21098b9-113d-492a-be32-39fdd482ffd2",
+      "781dbda5-dcaf-4165-a956-78c1f43dbe75",
+      "ec6327ca-98e9-4d5c-b1a0-b9bf27651b89",
+      "23d11daf-b3bc-4884-b947-3971dea05ba8",
+      "0519a12f-9f2b-436a-b8a8-27d4ab7afb1a",
+      "404521db-d07c-4a5d-a31b-528f8e6d8726",
+      "a66989c3-d229-4002-9115-f5b0dca70c33",
+      "e7367c1c-28cd-48af-8a71-b2fc18846abe",
+      "7ac73e3e-0874-4cf6-a055-a3b370ab43d6",
+      "88ff18f3-0db5-4bc2-97cf-2d0392263d8b",
+      "6a99ea25-3ace-426c-a43f-d32b2450eb3f",
+      "5c669a3c-c60a-48c0-a60a-8585584fc851",
+      "c0026f52-0301-4de1-9638-14791951df8f",
+      "7b806398-54bb-47a3-bb7b-d49492a741d9",
+      "c67570fc-38b4-43bd-b32a-45f4da86bf80",
+      "db45b0a2-78d7-40b0-9982-e063c707dcca",
+      "d16213f8-da9a-4f36-9dff-52f630ee6402",
+      "19852243-8e4b-4f76-be37-e76991d4d875",
+      "edfe3d87-7969-4261-bbcd-c1f67a95d9cd",
+      "29df64c4-5ce7-4b5e-85eb-df8bdb70fd61",
+      "30936f12-e473-40a7-93aa-5fbd27fe1976",
+      "24a97e40-6eb9-4a1a-9f7f-5e809d255f8f",
+      "3a6c1976-c3d1-46e3-8dfe-21233eab69da",
+      "8371d8ba-2001-420d-aac8-fa4121597f1a",
+      "681aa4ff-0879-464a-a454-edf577d99a80",
+      "5688e568-5d8c-48bc-9b53-dec772cf0b8b"
+    ];
+
+    // Remove duplicates from the array
+    const uniqueHostIds = [...new Set(hostIds)];
+    
+    // Create an object with host IDs as keys and true as values
+    const hostIdsObject = {};
+    uniqueHostIds.forEach(id => {
+      hostIdsObject[id] = true;
+    });
+
+    // Write to database at /host_id path
+    await db.ref('/host_ids').set(hostIdsObject);
+
+    logger.info(`✅ Successfully added ${uniqueHostIds.length} unique host IDs to database`);
+    
+    res.status(200).json({
+      success: true,
+      message: `Successfully added ${uniqueHostIds.length} unique host IDs to database`,
+      totalIds: uniqueHostIds.length,
+      duplicateRemoved: hostIds.length - uniqueHostIds.length
+    });
+
+  } catch (error) {
+    logger.error("❌ Error adding host IDs to database:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
