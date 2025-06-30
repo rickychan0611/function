@@ -1,16 +1,16 @@
-WARNING: An illegal reflective access operation has occurred
-WARNING: Illegal reflective access by io.netty.util.internal.ReflectionUtil (file:/C:/Users/Ricky%20PC/.cache/firebase/emulators/firebase-database-emulator-v4.11.2.jar) to field sun.nio.ch.SelectorImpl.selectedKeys
-WARNING: Please consider reporting this to the maintainers of io.netty.util.internal.ReflectionUtil
-WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
-WARNING: All illegal access operations will be denied in a future release
-14:24:49.842 [NamespaceSystem-akka.actor.default-dispatcher-5] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
-14:24:50.167 [main] INFO com.firebase.server.forge.App$ - Listening at 127.0.0.1:9004
-14:24:59.901 [NamespaceSystem-akka.actor.default-dispatcher-5] INFO com.firebase.core.namespace.NamespaceActor - fake-server successfully activated FBKV (SurveyIdle(0)) wait: 179ms, init: 0ms
-14:24:59.974 [NamespaceSystem-blocking-namespace-operation-dispatcher-7] INFO com.firebase.core.namespace.StateManager - Namespace fake-server status Active to Active
-14:25:00.013 [NamespaceSystem-blocking-namespace-operation-dispatcher-7] INFO com.firebase.core.namespace.StateManager - Namespace fake-server status Active to Active
-14:33:58.460 [FirebaseWorkerPool-1-3] WARN com.firebase.core.persistence.backend.dummy.EmulatorMetadataPersistence - Multiple projectIds are not recommended in single project mode. Requested 
+15:47:32.420 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+15:47:32.495 [main] INFO com.firebase.server.forge.App$ - Listening at 127.0.0.1:9004
+15:47:37.192 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO com.firebase.core.namespace.NamespaceActor - fake-server successfully activated FBKV (SurveyIdle(0)) wait: 60ms, init: 0ms
+15:47:37.218 [NamespaceSystem-blocking-namespace-operation-dispatcher-7] INFO com.firebase.core.namespace.StateManager - Namespace fake-server status Active to Active
+15:47:37.230 [NamespaceSystem-blocking-namespace-operation-dispatcher-7] INFO com.firebase.core.namespace.StateManager - Namespace fake-server status Active to Active
+15:48:14.063 [FirebaseWorkerPool-1-3] WARN com.firebase.core.persistence.backend.dummy.EmulatorMetadataPersistence - Multiple projectIds are not recommended in single project mode. Requested 
 namespace popchatv002-default-rtdb, but the emulator is configured for fake-server. To 
 opt-out of single project mode add/set the singleProjectMode: false property in 
 the firebase.json emulators config. 
-14:33:58.464 [NamespaceSystem-akka.actor.default-dispatcher-9] INFO com.firebase.core.namespace.NamespaceActor - popchatv002-default-rtdb successfully activated FBKV (SurveyIdle(0)) wait: 2ms, init: 0ms
-14:34:24.945 [NamespaceSystem-blocking-namespace-operation-dispatcher-15] INFO com.firebase.core.stats.EventAuditLog - {"eventId":"my/4SIKhhYChH91hh81ELmCvTAA=","namespace":"popchatv002-default-rtdb","projectNumber":"123456789","eventType":"google.firebase.database.ref.v1.created","flowName":"projects/popchatv002/topics/us-central1-trackUserSessionCreate-0","resource":"projects/_/instances/popchatv002-default-rtdb/refs/status/38585d63-e6f8-45ad-923f-9fc8feaa7f87","evaluationTimestamp":"2025-06-27T21:34:24.890Z","stage":"TRIGGERED"}
+15:48:14.066 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO com.firebase.core.namespace.NamespaceActor - popchatv002-default-rtdb successfully activated FBKV (SurveyIdle(0)) wait: 1ms, init: 0ms
+15:48:14.202 [NamespaceSystem-blocking-namespace-operation-dispatcher-9] INFO com.firebase.core.stats.EventAuditLog - {"eventId":"tqe5PcWvl0RDkHVvegVbMm31M7g=","namespace":"popchatv002-default-rtdb","projectNumber":"123456789","eventType":"google.firebase.database.ref.v1.created","flowName":"projects/popchatv002/topics/us-central1-trackUserSessionCreate-0","resource":"projects/_/instances/popchatv002-default-rtdb/refs/status/38585d63-e6f8-45ad-923f-9fc8feaa7f87","evaluationTimestamp":"2025-06-29T22:48:14.182Z","stage":"TRIGGERED"}
+15:48:22.922 [FirebaseWorkerPool-1-1] WARN com.firebase.core.persistence.backend.dummy.EmulatorMetadataPersistence - Multiple projectIds are not recommended in single project mode. Requested 
+namespace popchatv002, but the emulator is configured for fake-server,popchatv002-default-rtdb. To 
+opt-out of single project mode add/set the singleProjectMode: false property in 
+the firebase.json emulators config. 
+15:48:22.927 [NamespaceSystem-akka.actor.default-dispatcher-6] INFO com.firebase.core.namespace.NamespaceActor - popchatv002 successfully activated FBKV (SurveyIdle(0)) wait: 2ms, init: 0ms

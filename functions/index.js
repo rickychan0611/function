@@ -23,20 +23,20 @@ admin.initializeApp();
 
 // Telegram bot configuration
 const CHAT_IDS = [
-  "-1002673859693", // https://t.me/pomchatdev //pomchatdev
-  "-1002412279665", // https://t.me/pomchatpop //🔞Pomchatpop🔞 //https://t.me/pomchatpopbot/pomchat
-  "-1002642186417", // https://t.me/pomchatvip //Pomchatvip01
-  "-1002603412953", // https://t.me/pomchatlive //pomchatlive //https://t.me/pomchatlivebot/pomchat
-  "-1002560028339", // https://t.me/pomchat //Pomchatvvip 全球果聊 //https://t.me/pomchatvipbot/pomchat?startapp=isChinese
-  "-1002559668222", // https://t.me/pombabe //🔞pomchat🔞
-  "-1002307647703", // https://t.me/pomchat06 //pomchat06 //https://t.me/pomchat06bot/app
-  "-1002814655337", //https://t.me/pomchatvvip  //PomChat 全球美女果聊中文群 //https://t.me/pomchatvipbot/pomchat?startapp=isChinese
-];
-
-// Helper function to determine if a chat ID is Chinese
-const isChineseChat = (chatId) => {
-  return chatId === "-1002560028339" || chatId === "-1002814655337";
-};
+  { chatId: "-1002673859693", inviteCode: "pomchatpopbot", isChinese: false },
+  { chatId: "-1002412279665", inviteCode: "pomchatpopbot", isChinese: false },
+  { chatId: "-1002642186417", inviteCode: "pomchatvipbot", isChinese: false },
+  { chatId: "-1002603412953", inviteCode: "pomchatlivebot", isChinese: false},
+  { chatId: "-1002559668222", inviteCode: "pombabe", isChinese: false },
+  { chatId: "-1002307647703", inviteCode: "pomchat06bot", isChinese: false },
+  { chatId: "-1002388447971", inviteCode: "pomchatus", isChinese: false },
+  // { chatId: "-1002814655337", inviteCode: "pomchatvvip", isChinese: false },
+  // { chatId: "-1002560028339", inviteCode: "pomchat", isChinese: false },
+]
+const blackList = [
+  "6cfbfe70-e65f-4e53-8bb3-c806b75da1bb",
+  "0b018e2d-360c-4919-a81c-d8c733a27b59"
+]
 
 const db = admin.database();
 
@@ -304,7 +304,7 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
     logger.info("🧪 Test function triggered - getting random user");
 
     // Get chatId from query parameter, default to first chat in CHAT_IDS
-    const chatId = req.query.chatId || CHAT_IDS[0];
+    const chatId = req.query.chatId || CHAT_IDS[0].chatId;
     logger.info(`📱 Target chat ID: ${chatId}`);
 
     // Get all users from status
@@ -375,11 +375,11 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
     }
 
     // Send media to specific chat
-    const caption = isChineseChat(chatId) ?
+    const caption = CHAT_IDS.find(c => c.chatId === chatId)?.isChinese ?
       `🎉 ${selectedUser.userData.nickname} 在线! 💋🔥  真人女孩  💃👀\n\n ${chinese_messages[Math.floor(Math.random() * chinese_messages.length)]} \n\n ${chinese_labels[Math.floor(Math.random() * chinese_labels.length)]}` :
       `🎉 ${selectedUser.userData.nickname} is LIVE now!  💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
 
-    const result = await sendMediaToTG(selectedMedia.path, selectedMedia.type, chatId, caption, isChineseChat(chatId));
+    const result = await sendMediaToTG(selectedMedia.path, selectedMedia.type, chatId, caption, CHAT_IDS.find(c => c.chatId === chatId)?.isChinese, CHAT_IDS.find(c => c.chatId === chatId)?.inviteCode);
     if (result.success) {
       logger.info(`✅ Successfully sent media for user ${selectedUser.userId} to Telegram chat ${chatId}`);
       res.status(200).json({
@@ -399,11 +399,11 @@ exports.testScheduledFunction = onRequest(async (req, res) => {
       });
     } else {
       logger.error(`❌ Failed to send media for user ${selectedUser.userId} to chat ${chatId}:`, result.error);
-      res.status(500).json({ 
-        success: false, 
-        message: "Failed to send media", 
+      res.status(500).json({
+        success: false,
+        message: "Failed to send media",
         targetChatId: chatId,
-        error: result.error 
+        error: result.error
       });
     }
 
@@ -529,21 +529,21 @@ exports.scheduledRandomUserMedia = onSchedule({
       }
 
       // Send media to Telegram
-      const sendPromises = CHAT_IDS.map(async (chatId) => {
+      const sendPromises = CHAT_IDS.map(async (chat) => {
         // Determine if this is a Chinese chat
-        
+
         // Generate caption based on the specific chat ID
-        const caption = isChineseChat(chatId) ?
+        const caption = chat.isChinese ?
           `🎉 ${currentUserData.nickname} 在线! 💋🔥  真人女孩  💃👀\n\n ${chinese_messages[Math.floor(Math.random() * chinese_messages.length)]} \n\n ${chinese_labels[Math.floor(Math.random() * chinese_labels.length)]}` :
           `🎉 ${currentUserData.nickname} is LIVE now! 💋🔥  Real girl  💃👀\n\n ${messages[Math.floor(Math.random() * messages.length)]} \n\n ${labels[Math.floor(Math.random() * labels.length)]}`;
 
-        const result = await sendMediaToTG(media.path, media.type, chatId, caption, isChineseChat(chatId));
+        const result = await sendMediaToTG(media.path, media.type, chat.chatId, caption, chat.isChinese, chat.inviteCode);
         if (result.success) {
-          logger.info(`✅ Successfully sent media for user ${currentUserId} to Telegram chat ${chatId}`);
-          return { success: true, chatId };
+          logger.info(`✅ Successfully sent media for user ${currentUserId} to Telegram chat ${chat.chatId}`);
+          return { success: true, chatId: chat.chatId };
         } else {
-          logger.error(`❌ Failed to send media for user ${currentUserId} to chat ${chatId}:`, result.error);
-          return { success: false, chatId, error: result.error };
+          logger.error(`❌ Failed to send media for user ${currentUserId} to chat ${chat.chatId}:`, result.error);
+          return { success: false, chatId: chat.chatId, error: result.error };
         }
       });
 
@@ -610,10 +610,10 @@ exports.scheduledRandomUserMedia = onSchedule({
 
 exports.testSendAd = onRequest(async (req, res) => {
   try {
-    const sendPromises = CHAT_IDS.map(async (chatId) => {
-      
+    const sendPromises = CHAT_IDS.map(async (chat) => {
+
       // Generate caption based on language
-      const caption = isChineseChat(chatId) ? 
+      const caption = chat.isChinese ?
         `❤️ 1v1视频聊天 💋
 
   ⏺️ 白人 黑人 亚洲女孩
@@ -639,13 +639,13 @@ exports.testSendAd = onRequest(async (req, res) => {
 
 You'll always find one you like!`;
 
-      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption, isChineseChat(chatId));
+      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chat.chatId, caption, chat.isChinese, chat.inviteCode);
       if (result.success) {
-        logger.info(`✅ Successfully sent ad to Telegram chat ${chatId}`);
-        return { success: true, chatId };
+        logger.info(`✅ Successfully sent ad to Telegram chat ${chat.chatId}`);
+        return { success: true, chatId: chat.chatId };
       } else {
-        logger.error(`❌ Failed to send ad to chat ${chatId}:`, result.error);
-        return { success: false, chatId, error: result.error };
+        logger.error(`❌ Failed to send ad to chat ${chat.chatId}:`, result.error);
+        return { success: false, chatId: chat.chatId, error: result.error };
       }
     });
 
@@ -672,11 +672,11 @@ exports.scheduledSendAd = onSchedule({
   timeZone: "America/Vancouver"
 }, async (event) => {
   try {
-    const sendPromises = CHAT_IDS.map(async (chatId) => {
+    const sendPromises = CHAT_IDS.map(async (chat) => {
       // Determine if this is a Chinese chat
-     
+
       // Generate caption based on language
-      const caption = isChineseChat(chatId) ? 
+      const caption = chat.isChinese ?
         `❤️ 1v1视频聊天 💋
 
   ⏺️ 白人 黑人 亚洲女孩
@@ -702,13 +702,13 @@ exports.scheduledSendAd = onSchedule({
 
 You'll always find one you like!`;
 
-      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chatId, caption, isChineseChat(chatId));
+      const result = await sendMediaToTG("https://pomchat.live/ad.jpg", 1, chat.chatId, caption, chat.isChinese, chat.inviteCode);
       if (result.success) {
-        logger.info(`✅ Successfully sent ad to Telegram chat ${chatId}`);
-        return { success: true, chatId };
+        logger.info(`✅ Successfully sent ad to Telegram chat ${chat.chatId}`);
+        return { success: true, chatId: chat.chatId };
       } else {
-        logger.error(`❌ Failed to send ad to chat ${chatId}:`, result.error);
-        return { success: false, chatId, error: result.error };
+        logger.error(`❌ Failed to send ad to chat ${chat.chatId}:`, result.error);
+        return { success: false, chatId: chat.chatId, error: result.error };
       }
     });
 

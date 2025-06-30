@@ -53,13 +53,13 @@ const getMedia = async (id) => {
 };
 
 // Helper function to send media to Telegram group
-const sendMediaToTG = async (url, type, chat_id, caption, isChinese = false) => {
+const sendMediaToTG = async (url, type, chat_id, caption, isChinese = false, inviteCode = null) => {
   try {
     const telegramURL = `https://api.telegram.org/bot${botToken}/${type === 1 ? "sendPhoto" : "sendVideo"}`;
 
     // Define buttons based on language
 
-    const link = isChinese ? `https://t.me/pomchatvipbot/pomchat?startapp=isChinese` : `https://t.me/pomchatpopbot/pomchat`;
+    const link = `https://t.me/pomchatpopbot/pomchat?startapp=${inviteCode}`;
     const buttons = isChinese ? [
       [
         {
